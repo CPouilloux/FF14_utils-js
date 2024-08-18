@@ -91,6 +91,9 @@ function sortMarketDataByServer(data) {
     let tmp = 0;
     const full_data = {};
     list_id.forEach(item_id => {
+        if (!items[item_id] || !items[item_id]["listings"]){
+            return;
+        }
         const item_listings = items[item_id]["listings"];
         const server_listing_detail = {};
         item_listings.forEach(listing => {

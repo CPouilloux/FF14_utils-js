@@ -15,7 +15,12 @@
     <div class="div-item-tab item-id-<%= item_id %>">
         <h2><%= items_mapping[item_id].name_fr %> - <%= items_mapping[item_id].name_en %></h2>
         <div class="serveur-values main-server">
-            <% let hour_last_update = data[item_id][server_data.main_serveur_id][0]["lastReviewTime"] %>
+            <%
+                let hour_last_update ="--:--";
+                try {
+                    hour_last_update = data[item_id][server_data.main_serveur_id][0]["lastReviewTime"];
+                } catch (e) {}
+            %>
             <div class="server-name server-id-<%= server_data.main_serveur_id %>"><%= server_data.main_serveur %>
                 - <%= hour_last_update %></div>
             <table>
