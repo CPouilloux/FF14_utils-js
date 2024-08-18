@@ -70,7 +70,7 @@ async function getDictDataFromUrl(url) {
 
 function convertTimestampToReadableDate(timestamp) {
   const date = new Date(timestamp * 1000);
-  const options = { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit'};
+  const options = {  hour: '2-digit', minute: '2-digit'};
   return date.toLocaleString('fr-FR', options);
 }
 
@@ -112,8 +112,8 @@ function sortMarketDataByServer(data) {
 
 
 async function retrive_market_data(id_list) {
-    //const url = buildUrl(id_list);
-    const url  = "http://localhost:3030";
+    const url = buildUrl(id_list);
+    //const url  = "http://localhost:3030";
     let data = await getDictDataFromUrl(url);
     let full_data = sortMarketDataByServer(data);
     //console.log(data);

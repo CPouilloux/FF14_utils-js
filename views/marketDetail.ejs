@@ -12,13 +12,12 @@
 <h1>Detail</h1>
 
 <% for(let item_id in data) { %>
-    <% console.log("----------------") %>
-    <% console.log(items_mapping[item_id]) %>
-    <% console.log("----------------") %>
     <div class="div-item-tab item-id-<%= item_id %>">
         <h2><%= items_mapping[item_id].name_fr %> - <%= items_mapping[item_id].name_en %></h2>
         <div class="serveur-values main-server">
-            <div class="server-name server-id-<%= server_data.main_serveur_id %>"><%= server_data.main_serveur %></div>
+            <% let hour_last_update = data[item_id][server_data.main_serveur_id][0]["lastReviewTime"] %>
+            <div class="server-name server-id-<%= server_data.main_serveur_id %>"><%= server_data.main_serveur %>
+                - <%= hour_last_update %></div>
             <table>
                 <% let server_listing = data[item_id][server_data.main_serveur_id];
                 for (let i = 0; i < server_listing.length && i < 10; i++) {
@@ -34,17 +33,19 @@
         </div>
         <% for (let id_other_server in server_data["all_others_serveur"]) { %>
             <div class="serveur-values other-server">
-                <div class="server-name server-id-<%= id_other_server %>"><%= server_data["all_others_serveur"][id_other_server] %></div>
+                <% let hour_last_update = data[item_id][id_other_server][0]["lastReviewTime"] %>
+                <div class="server-name server-id-<%= id_other_server %>"><%= server_data["all_others_serveur"][id_other_server] %>
+                    - <%= hour_last_update %> </div>
                 <table>
                     <% let server_listing = data[item_id][id_other_server];
                     for (let i = 0; i < server_listing.length && i < 10; i++) {
                         let listing = server_listing[i];
                     %>
-                        <tr>
-                            <td class="other-price"><%= listing.pricePerUnit %></td>
-                            <td class="other-quantity"> * <%= listing.quantity %> =</td>
-                            <td class="other-total"><%= listing.total %></td>
-                        </tr>
+                    <tr>
+                        <td class="other-price"><%= listing.pricePerUnit %></td>
+                        <td class="other-quantity"> * <%= listing.quantity %> =</td>
+                        <td class="other-total"><%= listing.total %></td>
+                    </tr>
                     <% } %>
                 </table>
             </div>
