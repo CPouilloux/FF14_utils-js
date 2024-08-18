@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Un titre</title>
+</head>
+
+<body>
+  <h1>Filtrer la liste :</h1>
+
+  <!-- Champ de texte pour filtrer les éléments -->
+  <input type="text" id="filterInputFr" placeholder="Filtrer par nom (français)">
+  <input type="text" id="filterInputEn" placeholder="Filtrer par nom (anglais)">
+
+  <!-- Div pour afficher les IDs cochés -->
+  <div>
+    <h2>IDs cochés :</h2>
+    <div id="checkedIds"></div>
+  </div>
+  
+  <!-- Bouton pour décocher toutes les cases -->
+  <button id="uncheckAllBtn">Décocher toutes les cases</button>
+  <button id="openInNewTabBtn">Ouvrir dans un nouvel onglet</button>
+
+
+
+
+
+  <table id="dataTable">
+    <% for(let id in data) { %>
+    <tr>
+        <td><input type="checkbox" class="itemCheckbox" data-id="<%= data[id].id %>"></td>
+        <td><div class="item_id" data-checkbox-id="<%= data[id].id %>"><%= data[id].id %></div></td>
+        <td><div class="name_fr" data-checkbox-id="<%= data[id].id %>"><%= data[id].name_fr %></div></td>
+        <td><div class="name_en" data-checkbox-id="<%= data[id].id %>"><%= data[id].name_en %></div></td>
+    </tr>
+    <% } %>
+</table>
+
+</body>
+<script src="/js/filter_list.js"></script>
+</html>
