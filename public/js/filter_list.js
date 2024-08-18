@@ -73,7 +73,7 @@ document.addEventListener('DOMContentLoaded', () => {
     openInNewTabBtn.addEventListener('click', () => {
       const checkedIds = updateCheckedIds();
       if (checkedIds.length > 0) {
-        const url = `/someEndpoint?ids=${encodeURIComponent(checkedIds.join(','))}`;
+        const url = `/marketDetail?ids=${encodeURIComponent(checkedIds.join(','))}`;
         window.open(url, '_blank');
       } else {
         alert('Aucun ID sélectionné.');

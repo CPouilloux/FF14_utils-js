@@ -112,12 +112,24 @@ function sortMarketDataByServer(data) {
 
 
 async function retrive_market_data(id_list) {
-    const url = buildUrl(id_list);
+    //const url = buildUrl(id_list);
+    const url  = "http://localhost:3030";
     let data = await getDictDataFromUrl(url);
     let full_data = sortMarketDataByServer(data);
     //console.log(data);
     return full_data;
 }
+function get_server_data(){
+    const serv_whiout_main = Object.assign({}, chaos_servers);;
+    delete serv_whiout_main[main_server];
+    return {
+        "main_serveur" : chaos_servers[main_server],
+        "main_serveur_id" : main_server,
+        all_others_serveur : serv_whiout_main
+    }
+}
 
-module.exports = retrive_market_data;
-
+module.exports = {
+  retrive_market_data,
+  get_server_data,
+};
