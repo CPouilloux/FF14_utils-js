@@ -8,56 +8,41 @@
     <link href="/css/market-detail.css" rel="stylesheet">
 </head>
 <body>
-<!-- {data: json_data, server_data: server_data, items_mapping: items_mapping} -->
-<h1>Detail</h1>
+<main class="page-container">
+<div class="top-actions">
+    <button id="themeToggleBtn" type="button" class="theme-toggle-btn btn btn-secondary">Mode clair</button>
+</div>
 
-<% for(let item_id in data) { %>
-    <div class="div-item-tab item-id-<%= item_id %>">
-        <h2><%= items_mapping[item_id].name_fr %> - <%= items_mapping[item_id].name_en %></h2>
-        <div class="serveur-values main-server">
-            <%
-                let hour_last_update ="--:--";
-                try {
-                    hour_last_update = data[item_id][server_data.main_serveur_id][0]["lastReviewTime"];
-                } catch (e) {}
-            %>
-            <div class="server-name server-id-<%= server_data.main_serveur_id %>"><%= server_data.main_serveur %>
-                - <%= hour_last_update %></div>
-            <table>
-                <% let server_listing = data[item_id][server_data.main_serveur_id];
-                for (let i = 0; i < server_listing.length && i < 10; i++) {
-                    let listing = server_listing[i];
-                %>
-                <tr>
-                    <td class="main-price"><%= listing.pricePerUnit %></td>
-                    <td class="main-quantity"> * <%= listing.quantity %> =</td>
-                    <td class="main-total"><%= listing.total %></td>
-                </tr>
-                <% } %>
-            </table>
-        </div>
-        <% for (let id_other_server in server_data["all_others_serveur"]) { %>
-            <div class="serveur-values other-server">
-                <% let hour_last_update = data[item_id][id_other_server][0]["lastReviewTime"] %>
-                <div class="server-name server-id-<%= id_other_server %>"><%= server_data["all_others_serveur"][id_other_server] %>
-                    - <%= hour_last_update %> </div>
-                <table>
-                    <% let server_listing = data[item_id][id_other_server];
-                    for (let i = 0; i < server_listing.length && i < 10; i++) {
-                        let listing = server_listing[i];
-                    %>
-                    <tr>
-                        <td class="other-price"><%= listing.pricePerUnit %></td>
-                        <td class="other-quantity"> * <%= listing.quantity %> =</td>
-                        <td class="other-total"><%= listing.total %></td>
-                    </tr>
-                    <% } %>
-                </table>
-            </div>
+<section class="detail-toolbar">
+    <div class="saved-shortcuts">
+        <span>Raccourcis:</span>
+        <% if (!savedSearches || savedSearches.length === 0) { %>
+            <span class="empty-shortcut">Aucun</span>
+        <% } %>
+        <% if (savedSearches && savedSearches.length > 0) { %>
+            <% for (let i = 0; i < savedSearches.length; i++) { %>
+                <% const search = savedSearches[i]; %>
+                <a class="shortcut-link btn btn-secondary" href="/marketDetail?ids=<%= encodeURIComponent((search.itemIds || []).join(',')) %>"><%= search.name %></a>
+            <% } %>
         <% } %>
     </div>
-<% } %>
+</section>
+
+<section class="loading-panel" id="loadingPanel">
+    <div class="loading-text" id="loadingText">Chargement des données du marché...</div>
+    <div class="progress-bar">
+        <div class="progress-value" id="progressValue"></div>
+    </div>
+</section>
+
+<section id="detailContent"></section>
+</main>
 
 </body>
 <script src="/js/market_detail_front.js"></script>
+<script src="/js/market_detail_loader.js"></script>
+<script src="/js/theme_toggle.js"></script>
+<script>
+    window.__MARKET_DETAIL_IDS__ = "<%= ids_param %>";
+</script>
 </html>

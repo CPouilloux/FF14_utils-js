@@ -9,10 +9,13 @@ function calculatePercentage(reference, test) {
     return percentage.toFixed(1); // Retourne le pourcentage avec deux décimales
 }
 
-
-document.addEventListener('DOMContentLoaded', () => {
+function applyMarketColors() {
     document.querySelectorAll('.div-item-tab').forEach(item_tab => {
         const main_serv = item_tab.querySelector('.main-server');
+        if (!main_serv) {
+            return;
+        }
+
         let bottom_value_main_server = 1000000000;
         main_serv.querySelectorAll('.main-price').forEach(item_price =>{
             bottom_value_main_server = Math.min(bottom_value_main_server , Number(item_price.innerText));
@@ -36,9 +39,11 @@ document.addEventListener('DOMContentLoaded', () => {
                price_value.parentElement.classList.add(color_class);
            })
         });
-
-
-
-
     });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    applyMarketColors();
 });
+
+window.applyMarketColors = applyMarketColors;

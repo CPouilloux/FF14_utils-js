@@ -1,113 +1,171 @@
 const fs = require('fs');
-const csv = require('csv-parser');
+const https = require('https');
+const path = require('path');
 
+const CACHE_FILE = path.join('data-files', 'items_cache.json');
+// XIVAPI v2 — couvre tous les items incluant les derniers patches
+const BASE_URL = 'https://v2.xivapi.com/api/sheet/Item';
+// Name = EN par défaut, Name@lang(fr) = FR
+const FIELDS = 'Name,Name@lang(fr)';
+const PAGE_SIZE = 250;
+const DELAY_MS = 300;
 
-/**
- * @typedef {Object} MonObjet
- * @property {string} id - L'identifiant unique.
- * @property {string} name - Le nom de l'objet.
- * @property {string} description - La description de l'objet.
- * @property {string} icon - L'icône associée à l'objet.
- * @property {string} level - Le niveau de l'objet.
- * @property {string} filter_group - Le groupe de filtre de l'objet.
- * @property {string} item_search_category - La catégorie de recherche de l'objet.
- * @property {string} class_job_category - La catégorie de classe/métier de l'objet.
- * @property {string} name_fr 
- * @property {string} name_en
- */
-
-/**
- * Une classe représentant un objet avec des propriétés spécifiques.
- */
-class Ff14_item {
-    constructor(row) {
-        this.id = row['﻿key'];
-        this.name = row['9'];
-        this.description = row['8'];
-        this.icon = row['10'];
-        this.level = row['11'];
-        this.filter_group = row['13'];
-        this.item_search_category = row['16'];
-        this.class_job_category = row['43'];
-    };
-    updatewithJson(json_data) {
-        try {
-            this.name_fr = json_data['fr'];
-            this.name_en = json_data['en'];
-            this.is_same_name = this.name === this.name_en;
-        } catch (error) {
-            //console.log(json_data);
-        }
-
-    };
+// -------------------------------------------------------
+// Classe item
+// -------------------------------------------------------
+class Ff14Item {
+    constructor(id, name_en, name_fr) {
+        this.id = String(id);
+        this.name_en = name_en || '';
+        this.name_fr = name_fr || '';
+    }
 }
 
-
-function lireCSV(cheminFichier) {
-    return new Promise((resolve, reject) => {
-        const results = [];
-        fs.createReadStream(cheminFichier)
-            .pipe(csv())
-            .on('data', (row) => {
-                results.push(row);
-            })
-            .on('end', () => {
-                resolve(results); // Résoudre la promesse avec les données
-            })
-            .on('error', (error) => {
-                reject(error); // Rejeter la promesse en cas d'erreur
-            });
-    });
+// -------------------------------------------------------
+// Utilitaires
+// -------------------------------------------------------
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-async function chargerJSON(cheminFichier) {
+function fetchJson(url) {
     return new Promise((resolve, reject) => {
-        fs.readFile(cheminFichier, 'utf8', (err, data) => {
-            if (err) {
-                reject(err); // Rejette la promesse si une erreur se produit lors de la lecture du fichier
-            } else {
+        https.get(url, (res) => {
+            let data = '';
+            res.on('data', chunk => data += chunk);
+            res.on('end', () => {
                 try {
-                    const dictionnaire = JSON.parse(data); // Convertit le contenu du fichier en objet JavaScript
-                    resolve(dictionnaire); // Résout la promesse avec l'objet
-                } catch (parseError) {
-                    reject(parseError); // Rejette la promesse si une erreur de parsing se produit
+                    resolve(JSON.parse(data));
+                } catch (e) {
+                    reject(new Error(`Erreur JSON : ${e.message}\nRaw: ${data.slice(0, 300)}`));
                 }
-            }
-        });
+            });
+        }).on('error', reject);
     });
 }
 
-
-
-async function getOnlyUsefullData(items) {
-    let json_data;
-    try {
-        const cheminFichier = 'data-files/items.json';
-        json_data = await chargerJSON(cheminFichier);
-    } catch (error) {
-        console.error('Erreur lors du chargement du fichier JSON:', error);
-        return;
+function ensureCacheDir() {
+    const dir = path.dirname(CACHE_FILE);
+    if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
     }
-    const to_return = {};
-    for (let i = 3; i < items.length; i++) {
-        const elm = new Ff14_item(items[i]);
-        if (elm.name !== "") {
-            elm.updatewithJson(json_data[elm.id]);
-            to_return[elm.id] = elm;
-        }
-    }
-    return to_return;
 }
 
+// -------------------------------------------------------
+// Cache
+// -------------------------------------------------------
+function loadCache() {
+    if (!fs.existsSync(CACHE_FILE)) return null;
+    try {
+        const raw = fs.readFileSync(CACHE_FILE, 'utf8');
+        const parsed = JSON.parse(raw);
+        console.log(`[items] Cache trouvé : ${Object.keys(parsed).length} items`);
+        return parsed;
+    } catch (e) {
+        console.warn('[items] Cache illisible, re-téléchargement...');
+        return null;
+    }
+}
+
+function saveCache(items) {
+    ensureCacheDir();
+    const toSave = {};
+    for (const id in items) {
+        toSave[id] = { name_en: items[id].name_en, name_fr: items[id].name_fr };
+    }
+    fs.writeFileSync(CACHE_FILE, JSON.stringify(toSave), 'utf8');
+    console.log(`[items] Cache sauvegardé : ${Object.keys(toSave).length} items`);
+}
+
+// -------------------------------------------------------
+// Téléchargement XIVAPI v2
+// Pagination par curseur (after=row_id)
+// -------------------------------------------------------
+function buildUrl(cursor) {
+    let url = `${BASE_URL}?fields=${encodeURIComponent(FIELDS)}&limit=${PAGE_SIZE}`;
+    if (cursor !== null) url += `&after=${cursor}`;
+    return url;
+}
+
+function processRows(rows, items) {
+    rows.forEach(row => {
+        const name_en = row.fields?.['Name'];
+        const name_fr = row.fields?.['Name@lang(fr)'];
+        if (name_en && name_en !== '') {
+            items[String(row.row_id)] = new Ff14Item(row.row_id, name_en, name_fr);
+        }
+    });
+}
+
+async function fetchAllItemsFromApi() {
+    console.log('[items] Téléchargement depuis XIVAPI v2...');
+
+    const items = {};
+    let cursor = null;
+    let page = 0;
+
+    do {
+        page++;
+        const url = buildUrl(cursor);
+        process.stdout.write(`\r[items] Page ${page} — ${Object.keys(items).length} items récupérés`);
+
+        let data;
+        let retries = 3;
+        while (retries > 0) {
+            try {
+                data = await fetchJson(url);
+                break;
+            } catch (e) {
+                retries--;
+                if (retries === 0) throw e;
+                console.log(`\n[items] Erreur page ${page}, retry dans 2s... (${retries} restants)`);
+                await sleep(2000);
+            }
+        }
+
+        if (!data.rows || data.rows.length === 0) break;
+
+        processRows(data.rows, items);
+
+        // Curseur = row_id du dernier élément reçu
+        cursor = data.rows[data.rows.length - 1].row_id;
+
+        // Moins de résultats que PAGE_SIZE = dernière page
+        if (data.rows.length < PAGE_SIZE) break;
+
+        await sleep(DELAY_MS);
+
+    } while (true);
+
+    console.log(`\n[items] ${Object.keys(items).length} items récupérés`);
+    return items;
+}
+
+// -------------------------------------------------------
+// Point d'entrée
+// -------------------------------------------------------
 
 /**
- * Retourne un dictionnaire d'objets `MonObjet` avec des identifiants uniques comme clés.
- * @returns {Object.<string, Ff14_item>} - Un dictionnaire d'objets `Ff14_item` indexés par `id`.
+ * Retourne un dictionnaire d'objets Ff14Item indexés par ID (string).
+ * Utilise le cache local si disponible, sinon appelle XIVAPI v2.
+ *
+ * Pour forcer un re-téléchargement : supprimer data-files/items_cache.json
+ *
+ * @returns {Promise<Object.<string, Ff14Item>>}
  */
 async function recuperationItemsFromFiles() {
-    const items_data = await lireCSV("data-files/Item.csv");
-    const ff14_items = await getOnlyUsefullData(items_data);
-    return ff14_items;
+    const cached = loadCache();
+    if (cached) {
+        const items = {};
+        for (const id in cached) {
+            items[id] = new Ff14Item(id, cached[id].name_en, cached[id].name_fr);
+        }
+        return items;
+    }
+
+    const items = await fetchAllItemsFromApi();
+    saveCache(items);
+    return items;
 }
 
 module.exports = recuperationItemsFromFiles;

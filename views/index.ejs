@@ -4,41 +4,115 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Un titre</title>
+  <title>FF14 Market Helper</title>
+  <link href="/css/index.css" rel="stylesheet">
 </head>
 
 <body>
-  <h1>Filtrer la liste :</h1>
+  <main class="page-container">
+    <section class="toolbar">
+      <form class="filters" id="filtersForm" method="get" action="/">
+        <input type="text" id="filterInputFr" name="qFr" value="<%= qFr %>" placeholder="Filtrer par nom (français)">
+        <input type="text" id="filterInputEn" name="qEn" value="<%= qEn %>" placeholder="Filtrer par nom (anglais)">
+        <select name="perPage" id="perPageSelect">
+          <option value="100" <%= perPage === 100 ? "selected" : "" %>>100</option>
+          <option value="200" <%= perPage === 200 ? "selected" : "" %>>200</option>
+          <option value="300" <%= perPage === 300 ? "selected" : "" %>>300</option>
+          <option value="500" <%= perPage === 500 ? "selected" : "" %>>500</option>
+        </select>
+        <button type="submit" class="btn btn-primary">Rechercher</button>
+      </form>
+      <button id="themeToggleBtn" type="button" class="theme-toggle-btn btn btn-secondary">Mode clair</button>
+    </section>
 
-  <!-- Champ de texte pour filtrer les éléments -->
-  <input type="text" id="filterInputFr" placeholder="Filtrer par nom (français)">
-  <input type="text" id="filterInputEn" placeholder="Filtrer par nom (anglais)">
+    <section class="saved-searches-panel">
+      <h2>Recherches sauvegardées</h2>
+      <div class="saved-searches-create">
+        <input type="text" id="savedSearchNameInput" placeholder="Nom de la recherche (ex: Materia raid)">
+        <button id="saveSearchBtn" type="button" class="btn btn-primary">Sauvegarder la sélection</button>
+      </div>
+      <div id="savedSearchesList" class="saved-searches-list">
+        <% if (!savedSearches || savedSearches.length === 0) { %>
+          <p class="saved-searches-empty">Aucune recherche sauvegardée.</p>
+        <% } %>
+        <% if (savedSearches && savedSearches.length > 0) { %>
+          <% for (let i = 0; i < savedSearches.length; i++) { %>
+            <% const search = savedSearches[i]; %>
+            <div class="saved-search-item" data-search-id="<%= search.id %>" data-search-ids="<%= (search.itemIds || []).join(',') %>">
+              <button type="button" class="open-saved-search-btn btn btn-secondary saved-search-chip">
+                <%= search.name %> (<%= (search.itemIds || []).length %>)
+              </button>
+              <div class="saved-search-actions">
+                <button type="button" class="delete-saved-search-btn btn btn-danger saved-search-delete-btn">×</button>
+              </div>
+            </div>
+          <% } %>
+        <% } %>
+      </div>
+    </section>
 
-  <!-- Div pour afficher les IDs cochés -->
-  <div>
-    <h2>IDs cochés :</h2>
-    <div id="checkedIds"></div>
-  </div>
-  
-  <!-- Bouton pour décocher toutes les cases -->
-  <button id="uncheckAllBtn">Décocher toutes les cases</button>
-  <button id="openInNewTabBtn">Ouvrir dans un nouvel onglet</button>
+    <section class="selection-panel">
+      <h2>IDs cochés</h2>
+      <div id="checkedIds">Aucun item sélectionné.</div>
+      <div class="selection-actions">
+        <button id="checkAllBtn" type="button" class="btn btn-secondary">Tout sélectionner (max 20)</button>
+        <button id="uncheckAllBtn" type="button" class="btn btn-secondary">Décocher toutes les cases</button>
+        <button id="openInNewTabBtn" type="button" class="btn btn-success">Ouvrir dans un nouvel onglet</button>
+      </div>
+    </section>
 
+    <section class="table-card">
+      <table id="dataTable">
+        <thead>
+        <tr>
+          <th></th>
+          <th>ID</th>
+          <th>Nom FR</th>
+          <th>Nom EN</th>
+        </tr>
+        </thead>
+        <tbody>
+        <% for(let i = 0; i < data.length; i++) { %>
+        <% const item = data[i]; %>
+        <tr>
+          <td><input type="checkbox" class="itemCheckbox" data-id="<%= item.id %>"></td>
+          <td><div class="item_id" data-checkbox-id="<%= item.id %>"><%= item.id %></div></td>
+          <td><div class="name_fr" data-checkbox-id="<%= item.id %>"><%= item.name_fr %></div></td>
+          <td><div class="name_en" data-checkbox-id="<%= item.id %>"><%= item.name_en %></div></td>
+        </tr>
+        <% } %>
+        </tbody>
+      </table>
+    </section>
 
+    <section class="pagination-panel">
+      <div class="pagination-info">
+        <span><%= totalItems %> résultats</span>
+        <span>Page <%= page %> / <%= totalPages %></span>
+      </div>
+      <div class="pagination-actions">
+        <% const prevPage = page > 1 ? page - 1 : 1; %>
+        <% const nextPage = page < totalPages ? page + 1 : totalPages; %>
+        <a class="page-link <%= page === 1 ? "disabled" : "" %>" href="/?qFr=<%= encodeURIComponent(qFr) %>&qEn=<%= encodeURIComponent(qEn) %>&perPage=<%= perPage %>&page=<%= prevPage %>">Précédent</a>
+        <a class="page-link <%= page === totalPages ? "disabled" : "" %>" href="/?qFr=<%= encodeURIComponent(qFr) %>&qEn=<%= encodeURIComponent(qEn) %>&perPage=<%= perPage %>&page=<%= nextPage %>">Suivant</a>
+      </div>
+    </section>
+  </main>
 
-
-
-  <table id="dataTable">
-    <% for(let id in data) { %>
-    <tr>
-        <td><input type="checkbox" class="itemCheckbox" data-id="<%= data[id].id %>"></td>
-        <td><div class="item_id" data-checkbox-id="<%= data[id].id %>"><%= data[id].id %></div></td>
-        <td><div class="name_fr" data-checkbox-id="<%= data[id].id %>"><%= data[id].name_fr %></div></td>
-        <td><div class="name_en" data-checkbox-id="<%= data[id].id %>"><%= data[id].name_en %></div></td>
-    </tr>
-    <% } %>
-</table>
-
+  <script src="/js/filter_list.js"></script>
+  <script src="/js/theme_toggle.js"></script>
+  <script>
+    // Petit confort visuel si aucun ID n'est sélectionné.
+    const checkedIdsDiv = document.getElementById('checkedIds');
+    const observer = new MutationObserver(() => {
+      if (!checkedIdsDiv.textContent.trim()) {
+        checkedIdsDiv.textContent = 'Aucun item sélectionné.';
+      }
+    });
+    observer.observe(checkedIdsDiv, { childList: true, characterData: true, subtree: true });
+    if (!checkedIdsDiv.textContent.trim()) {
+      checkedIdsDiv.textContent = 'Aucun item sélectionné.';
+    }
+  </script>
 </body>
-<script src="/js/filter_list.js"></script>
 </html>

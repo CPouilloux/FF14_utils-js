@@ -1,19 +1,356 @@
-.serveur-values{
-    display: inline-block;
+* {
+    box-sizing: border-box;
 }
 
-.red{
-    background-color: #f65252;
+body {
+    margin: 0;
+    font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+    background: #0f172a;
+    color: #e2e8f0;
 }
-.green{
-    background-color: #04c104;
+
+.page-container {
+    max-width: 100%;
+    margin: 0 auto;
+    padding: 8px;
 }
-.yellow{
-    background-color: yellow;
+
+.top-header {
+    margin-bottom: 20px;
+    padding: 18px 20px;
+    background: linear-gradient(135deg, #1d4ed8, #2563eb);
+    border-radius: 12px;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
 }
-.orange{
-    background-color: orange;
+
+.top-header h1 {
+    margin: 0;
+    font-size: 1.4rem;
 }
-.purple{
-    background-color: purple;
+
+.top-header p {
+    margin: 6px 0 0;
+    color: #dbeafe;
+    font-size: 0.9rem;
+}
+
+.theme-toggle-btn {
+    background: rgba(15, 23, 42, 0.55);
+    border: 1px solid rgba(226, 232, 240, 0.35);
+    color: #ffffff;
+    border-radius: 8px;
+    padding: 8px 12px;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.top-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 8px;
+}
+
+.detail-toolbar {
+    margin-bottom: 10px;
+    padding: 8px;
+    border: 1px solid #334155;
+    border-radius: 10px;
+    background: #111827;
+}
+
+.saved-shortcuts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+}
+
+.saved-shortcuts .btn {
+    padding: 5px 8px;
+    font-size: 0.78rem;
+}
+
+.empty-shortcut {
+    color: #94a3b8;
+    font-size: 0.88rem;
+}
+
+.btn {
+    border: none;
+    border-radius: 8px;
+    padding: 7px 10px;
+    color: #ffffff;
+    cursor: pointer;
+    font-weight: 600;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.12s ease, filter 0.12s ease;
+}
+
+.btn:hover {
+    filter: brightness(1.06);
+    transform: translateY(-1px);
+}
+
+.btn-secondary {
+    background: #334155;
+}
+
+.loading-panel {
+    margin-bottom: 10px;
+    padding: 10px;
+    border-radius: 10px;
+    border: 1px solid #334155;
+    background: #111827;
+}
+
+.loading-text {
+    font-size: 0.9rem;
+    margin-bottom: 8px;
+    color: #cbd5e1;
+}
+
+.progress-bar {
+    width: 100%;
+    height: 10px;
+    background: #1f2937;
+    border-radius: 999px;
+    overflow: hidden;
+}
+
+.progress-value {
+    height: 100%;
+    width: 0;
+    background: linear-gradient(90deg, #38bdf8, #2563eb);
+    transition: width 0.2s ease;
+}
+
+.div-item-tab {
+    margin-bottom: 22px;
+    background: #111827;
+    border: 1px solid #1f2937;
+    border-radius: 12px;
+    padding: 8px;
+    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.2);
+}
+
+.item-title {
+    margin: 6px 4px 14px;
+    font-size: 1.02rem;
+    color: #f8fafc;
+}
+
+.servers-grid {
+    display: grid;
+    grid-template-columns: repeat(8, minmax(0, 1fr));
+    gap: 6px;
+}
+
+.serveur-values {
+    background: #1f2937;
+    border-radius: 10px;
+    border: 1px solid #374151;
+    overflow: hidden;
+}
+
+.main-server {
+    border-color: #2563eb;
+}
+
+.server-name {
+    background: #111827;
+    padding: 8px 10px;
+    font-weight: 700;
+    font-size: 0.9rem;
+    border-bottom: 1px solid #334155;
+}
+
+.estimated-margin {
+    margin: 8px 10px;
+    font-size: 0.92rem;
+    color: #cbd5e1;
+}
+
+.quality-badge {
+    display: inline-block;
+    min-width: 30px;
+    padding: 2px 6px;
+    margin-right: 4px;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-align: center;
+}
+
+.quality-hq {
+    background: #facc15;
+    color: #111827;
+}
+
+.quality-nq {
+    background: #64748b;
+    color: #ffffff;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+td {
+    font-size: 0.84rem;
+    padding: 6px 8px;
+    border-bottom: 1px solid #334155;
+    text-align: right;
+}
+
+tr td:first-child {
+    text-align: right;
+}
+
+tr td[colspan] {
+    text-align: center;
+    color: #94a3b8;
+    font-style: italic;
+}
+
+.red {
+    background-color: #7f1d1d;
+}
+
+.green {
+    background-color: #14532d;
+}
+
+.yellow {
+    background-color: #713f12;
+}
+
+.orange {
+    background-color: #7c2d12;
+}
+
+.purple {
+    background-color: #581c87;
+}
+
+@media (max-width: 768px) {
+    .page-container {
+        padding: 12px;
+    }
+
+    .servers-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .div-item-tab {
+        padding: 10px;
+    }
+}
+
+body.light-theme {
+    background: #f1f5f9;
+    color: #0f172a;
+}
+
+body.light-theme .top-header {
+    background: linear-gradient(135deg, #e2e8f0, #bfdbfe);
+    box-shadow: 0 6px 14px rgba(15, 23, 42, 0.12);
+}
+
+body.light-theme .top-header p {
+    color: #334155;
+}
+
+body.light-theme .detail-toolbar,
+body.light-theme .loading-panel {
+    background: #ffffff;
+    border-color: #cbd5e1;
+}
+
+body.light-theme .loading-text,
+body.light-theme .empty-shortcut {
+    color: #475569;
+}
+
+body.light-theme .progress-bar {
+    background: #e2e8f0;
+}
+
+body.light-theme .div-item-tab {
+    background: #ffffff;
+    border-color: #cbd5e1;
+    box-shadow: 0 6px 14px rgba(15, 23, 42, 0.08);
+}
+
+body.light-theme .item-title {
+    color: #0f172a;
+}
+
+body.light-theme .serveur-values {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+}
+
+body.light-theme .server-name {
+    background: #e2e8f0;
+    border-bottom-color: #cbd5e1;
+    color: #0f172a;
+}
+
+body.light-theme td {
+    border-bottom-color: #cbd5e1;
+    color: #0f172a;
+}
+
+body.light-theme tr td[colspan],
+body.light-theme .estimated-margin {
+    color: #475569;
+}
+
+body.light-theme .theme-toggle-btn {
+    background: #ffffff;
+    color: #0f172a;
+    border: 1px solid #94a3b8;
+}
+
+body.light-theme .btn-secondary {
+    background: #64748b;
+}
+
+body.light-theme .quality-hq {
+    background: #f59e0b;
+    color: #111827;
+}
+
+body.light-theme .quality-nq {
+    background: #94a3b8;
+    color: #0f172a;
+}
+
+body.light-theme .red {
+    background-color: #ff6b6b;
+    color: #2b0d0d;
+}
+
+body.light-theme .green {
+    background-color: #4ade80;
+    color: #052e16;
+}
+
+body.light-theme .yellow {
+    background-color: #fde047;
+    color: #3f2b00;
+}
+
+body.light-theme .orange {
+    background-color: #fb923c;
+    color: #431407;
+}
+
+body.light-theme .purple {
+    background-color: #c084fc;
+    color: #2e1065;
 }

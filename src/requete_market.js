@@ -116,10 +116,20 @@ function sortMarketDataByServer(data) {
 
 async function retrive_market_data(id_list) {
     const url = buildUrl(id_list);
-    //const url  = "http://localhost:3030";
     let data = await getDictDataFromUrl(url);
+
+    // Universalis retourne un format différent selon le nombre d'items :
+    // - 1 item  : { itemID: 123, listings: [...], ... }
+    // - N items : { itemIDs: [123, 456], items: { 123: {...}, 456: {...} } }
+    // On normalise vers le format multi-items pour que sortMarketDataByServer fonctionne toujours.
+    if (data["itemID"] !== undefined && data["itemIDs"] === undefined) {
+        data = {
+            itemIDs: [data["itemID"]],
+            items: { [data["itemID"]]: data }
+        };
+    }
+
     let full_data = sortMarketDataByServer(data);
-    //console.log(data);
     return full_data;
 }
 function get_server_data(){
