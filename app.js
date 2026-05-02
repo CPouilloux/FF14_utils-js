@@ -488,11 +488,15 @@ async function getTopItemsData(options = {}) {
 
 init();
 
-app.get('/', (req, res) => {
-    const qFr = normalizeText(req.query.qFr);
-    const qEn = normalizeText(req.query.qEn);
-    const page = parsePositiveInt(req.query.page, 1);
-    const perPage = Math.min(parsePositiveInt(req.query.perPage, 200), 500);
+/**
+ * Liste index : filtres + pagination (partagé entre la page HTML et GET /api/items).
+ * @param {Record<string, unknown>} query
+ */
+function getIndexListState(query) {
+    const qFr = normalizeText(query.qFr);
+    const qEn = normalizeText(query.qEn);
+    const page = parsePositiveInt(query.page, 1);
+    const perPage = Math.min(parsePositiveInt(query.perPage, 200), 500);
 
     const allItems = Object.values(ff14_items || {});
     const filteredItems = allItems.filter(item => {
@@ -507,17 +511,46 @@ app.get('/', (req, res) => {
     const start = (safePage - 1) * perPage;
     const pagedItems = filteredItems.slice(start, start + perPage);
 
-    res.render('index', {
+    return {
         data: pagedItems,
         qFr,
         qEn,
         page: safePage,
         perPage,
         totalItems,
-        totalPages,
+        totalPages
+    };
+}
+
+app.get('/', (req, res) => {
+    const state = getIndexListState(req.query);
+    res.render('index', {
+        ...state,
         savedSearches: loadSavedSearches(),
         currentPath: req.path
     });
+});
+
+app.get('/api/items', (req, res) => {
+    try {
+        const state = getIndexListState(req.query);
+        res.json({
+            items: state.data.map(item => ({
+                id: String(item.id),
+                name_fr: item.name_fr || '',
+                name_en: item.name_en || ''
+            })),
+            qFr: state.qFr,
+            qEn: state.qEn,
+            page: state.page,
+            perPage: state.perPage,
+            totalItems: state.totalItems,
+            totalPages: state.totalPages
+        });
+    } catch (error) {
+        console.error('[api/items]', error);
+        res.status(500).json({ error: 'Erreur serveur.' });
+    }
 });
 
 app.get('/api/saved-searches', (req, res) => {

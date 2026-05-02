@@ -73,7 +73,7 @@
           <th>Nom EN</th>
         </tr>
         </thead>
-        <tbody>
+        <tbody id="itemsTableBody">
         <% for(let i = 0; i < data.length; i++) { %>
         <% const item = data[i]; %>
         <tr>
@@ -87,20 +87,28 @@
       </table>
     </section>
 
-    <section class="pagination-panel">
-      <div class="pagination-info">
-        <span><%= totalItems %> résultats</span>
-        <span>Page <%= page %> / <%= totalPages %></span>
+    <section class="pagination-panel" id="paginationPanel">
+      <div class="pagination-info" id="paginationInfo">
+        <span id="paginationTotal"><%= totalItems %> résultats</span>
+        <span id="paginationPage">Page <%= page %> / <%= totalPages %></span>
       </div>
-      <div class="pagination-actions">
+      <div class="pagination-actions" id="paginationActions">
         <% const prevPage = page > 1 ? page - 1 : 1; %>
         <% const nextPage = page < totalPages ? page + 1 : totalPages; %>
-        <a class="page-link <%= page === 1 ? "disabled" : "" %>" href="/?qFr=<%= encodeURIComponent(qFr) %>&qEn=<%= encodeURIComponent(qEn) %>&perPage=<%= perPage %>&page=<%= prevPage %>">Précédent</a>
-        <a class="page-link <%= page === totalPages ? "disabled" : "" %>" href="/?qFr=<%= encodeURIComponent(qFr) %>&qEn=<%= encodeURIComponent(qEn) %>&perPage=<%= perPage %>&page=<%= nextPage %>">Suivant</a>
+        <button type="button" class="page-link <%= page === 1 ? "disabled" : "" %>" data-nav-page="<%= prevPage %>">Précédent</button>
+        <button type="button" class="page-link <%= page === totalPages ? "disabled" : "" %>" data-nav-page="<%= nextPage %>">Suivant</button>
       </div>
     </section>
   </main>
 
+  <script>
+    window.__INDEX_LIST_META__ = {
+      page: <%= page %>,
+      totalPages: <%= totalPages %>,
+      totalItems: <%= totalItems %>,
+      perPage: <%= perPage %>
+    };
+  </script>
   <script src="/js/filter_list.js"></script>
   <script src="/js/theme_toggle.js"></script>
   <script>

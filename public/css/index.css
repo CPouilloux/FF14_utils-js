@@ -255,6 +255,12 @@ input[type="text"]:focus {
     font-size: 0.88rem;
 }
 
+button.page-link {
+    cursor: pointer;
+    border: none;
+    font: inherit;
+}
+
 .page-link:hover {
     background: #1d4ed8;
 }
