@@ -41,7 +41,3 @@ bower_components/
 # Misc
 .DS_Store
 Thumbs.db
-
-# Donnees generees en local (XIVAPI / Universalis)
-data-files/actions_cache.json
-data-files/tracked_top_items.json
