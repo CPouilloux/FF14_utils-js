@@ -93,6 +93,9 @@ function translateMacroSkillNames(text) {
     if (!actionTranslatePairs || actionTranslatePairs.length === 0) {
         return text;
     }
+    /** Marqueurs PUA : évite qu'une entrée courte (ex. EN "Travail" → "Labeur") ne s'applique au français déjà inséré (ex. "Travail de base"). */
+    const mark = '\uE000';
+    const pendingFr = [];
     let out = text;
     for (let i = 0; i < actionTranslatePairs.length; i++) {
         const { en, fr } = actionTranslatePairs[i];
@@ -100,7 +103,15 @@ function translateMacroSkillNames(text) {
             continue;
         }
         const escaped = en.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        out = out.replace(new RegExp(escaped, 'g'), fr);
+        out = out.replace(new RegExp(escaped, 'g'), () => {
+            const id = pendingFr.length;
+            pendingFr.push(fr);
+            return `${mark}FF14_MACRO_${id}${mark}`;
+        });
+    }
+    for (let j = 0; j < pendingFr.length; j++) {
+        const token = `${mark}FF14_MACRO_${j}${mark}`;
+        out = out.split(token).join(pendingFr[j]);
     }
     return out;
 }

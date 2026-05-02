@@ -41,6 +41,27 @@ function ensureCacheDir() {
     }
 }
 
+/** Noms de boss / variantes client JP-KR : inutiles pour les macros en anglais et encombrent le cache. */
+function hasEastAsianScript(s) {
+    return /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF\uAC00-\uD7AF]/.test(s);
+}
+
+function filterEastAsianEntries(byEnglishName) {
+    const out = {};
+    let dropped = 0;
+    for (const [en, fr] of Object.entries(byEnglishName || {})) {
+        if (hasEastAsianScript(en) || hasEastAsianScript(fr || '')) {
+            dropped++;
+            continue;
+        }
+        out[en] = fr;
+    }
+    if (dropped > 0) {
+        console.log(`[actions] Entrées exclues (caractères est-asiatiques) : ${dropped}`);
+    }
+    return out;
+}
+
 function loadCache() {
     if (!fs.existsSync(CACHE_FILE)) {
         return null;
@@ -49,8 +70,13 @@ function loadCache() {
         const raw = fs.readFileSync(CACHE_FILE, 'utf8');
         const parsed = JSON.parse(raw);
         if (parsed && typeof parsed.byEnglishName === 'object') {
-            console.log(`[actions] Cache trouvé : ${Object.keys(parsed.byEnglishName).length} noms EN`);
-            return parsed.byEnglishName;
+            const rawCount = Object.keys(parsed.byEnglishName).length;
+            const cleaned = filterEastAsianEntries(parsed.byEnglishName);
+            if (Object.keys(cleaned).length !== rawCount) {
+                saveCache(cleaned);
+            }
+            console.log(`[actions] Cache trouvé : ${Object.keys(cleaned).length} noms EN`);
+            return cleaned;
         }
         return null;
     } catch (e) {
@@ -83,6 +109,9 @@ function mergeRows(rows, byEnglishName) {
         const nameEn = (row.fields?.Name || '').trim();
         const nameFr = (row.fields?.['Name@lang(fr)'] || '').trim();
         if (!nameEn) {
+            return;
+        }
+        if (hasEastAsianScript(nameEn) || hasEastAsianScript(nameFr)) {
             return;
         }
         if (!byEnglishName[nameEn]) {
@@ -171,8 +200,9 @@ async function recuperationActionsFromFiles() {
 
     console.log('[actions] Pas de cache valide : demarrage du telechargement complet (voir progression ci-dessous).');
     const byEnglishName = await fetchAllActionsFromApi();
-    saveCache(byEnglishName);
-    return byEnglishName;
+    const cleaned = filterEastAsianEntries(byEnglishName);
+    saveCache(cleaned);
+    return cleaned;
 }
 
 module.exports = recuperationActionsFromFiles;
