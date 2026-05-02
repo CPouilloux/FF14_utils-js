@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Traduction macros (sorts EN → FR)</title>
+    <link href="/css/nav.css" rel="stylesheet">
+    <link href="/css/macro-translate.css" rel="stylesheet">
+</head>
+<body>
+<%- include('partials/nav', { currentPath }) %>
+
+<main class="page-container">
+    <section class="toolbar">
+        <div>
+            <h1>Traduction des noms de sorts (macros)</h1>
+            <p class="subtitle">
+                Les noms de sorts reconnus (feuilles XIVAPI <strong>Action</strong> et <strong>CraftAction</strong>) sont remplacés par leur équivalent français. Le dictionnaire est chargé au démarrage du serveur et mis en cache dans <code>data-files/actions_cache.json</code>.
+            </p>
+        </div>
+        <button id="themeToggleBtn" type="button" class="theme-toggle-btn btn btn-secondary">Mode clair</button>
+    </section>
+
+    <section id="macroGate" class="macro-gate-panel <%= macroDictReady ? 'hidden' : '' %>" role="status" aria-live="polite">
+        <div class="macro-gate-inner">
+            <h2 class="macro-gate-title">Traduction indisponible pour le moment</h2>
+            <p id="macroGateMessage" class="macro-gate-text"></p>
+            <p id="macroGateError" class="macro-gate-error hidden"></p>
+        </div>
+    </section>
+
+    <section id="macroWorkspace" class="macro-workspace <%= macroDictReady ? '' : 'hidden' %>">
+        <section class="hint-panel">
+            <p id="dictStatus" class="dict-status-inline"></p>
+        </section>
+
+        <section class="macro-grid">
+            <div class="macro-block">
+                <label for="macroInput">Texte (anglais)</label>
+                <textarea id="macroInput" class="macro-textarea" rows="14" placeholder="/ac &quot;Skill Name&quot; &lt;wait.2&gt;"></textarea>
+            </div>
+            <div class="macro-actions">
+                <button id="translateBtn" type="button" class="btn btn-primary">Traduire</button>
+                <button id="clearMacroBtn" type="button" class="btn btn-secondary">Effacer</button>
+                <button id="copyMacroResultBtn" type="button" class="btn btn-success">Copier le résultat</button>
+                <p id="macroMessage" class="macro-message" role="status"></p>
+            </div>
+            <div class="macro-block">
+                <label for="macroOutput">Résultat (français)</label>
+                <textarea id="macroOutput" class="macro-textarea" rows="14" readonly placeholder="Le résultat apparaît ici."></textarea>
+            </div>
+        </section>
+    </section>
+</main>
+
+<script>
+    window.__MACRO_DICT_STATE__ = <%- macroDictStateJson %>;
+</script>
+<script src="/js/theme_toggle.js"></script>
+<script src="/js/macro_translate.js"></script>
+</body>
+</html>

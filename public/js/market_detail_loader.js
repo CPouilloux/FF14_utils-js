@@ -14,6 +14,27 @@ document.addEventListener('DOMContentLoaded', async () => {
       .replaceAll("'", '&#039;');
   }
 
+  const STALE_SECONDS = 24 * 60 * 60;
+
+  function getFirstListingReviewMeta(listings) {
+    if (!listings || listings.length === 0) {
+      return { label: '--', isStale: false };
+    }
+    const first = listings[0];
+    const unix = first.lastReviewTimeUnix;
+    const label = first.lastReviewTime || '--';
+    const isStale = typeof unix === 'number' && (Date.now() / 1000 - unix > STALE_SECONDS);
+    return { label, isStale };
+  }
+
+  function readObservedPrice(serverId, itemId) {
+    try {
+      return localStorage.getItem(`ff14_market_observed_${serverId}_${itemId}`) || '';
+    } catch {
+      return '';
+    }
+  }
+
   let progress = 8;
   progressValue.style.width = `${progress}%`;
   const progressInterval = setInterval(() => {
@@ -42,14 +63,18 @@ document.addEventListener('DOMContentLoaded', async () => {
       const itemData = payload.data[itemId] || {};
       const mainListings = itemData[serverData.main_serveur_id] || [];
       const bestMainListing = mainListings.length > 0 ? mainListings[0] : null;
-      const mainHour = mainListings.length > 0 ? mainListings[0].lastReviewTime : '--:--';
+      const mainReview = getFirstListingReviewMeta(mainListings);
+      const mainTimeClass = mainReview.isStale ? ' review-time--stale' : '';
+      const staleTitle = 'Derniere annonce Universalis : plus de 24 h — les donnees peuvent etre perimees.';
+      const mainTimeTitle = mainReview.isStale ? ` title="${staleTitle.replace(/"/g, '&quot;')}"` : '';
+      const observedStored = readObservedPrice(serverData.main_serveur_id, itemId);
 
       html += `<section class="div-item-tab item-id-${escapeHtml(itemId)}">`;
       html += `<h2 class="item-title">${escapeHtml(itemInfo.name_fr)} - ${escapeHtml(itemInfo.name_en)}</h2>`;
       html += `<div class="servers-grid">`;
 
       html += `<article class="serveur-values main-server">`;
-      html += `<div class="server-name">${escapeHtml(serverData.main_serveur)} - ${escapeHtml(mainHour)}</div>`;
+      html += `<div class="server-name">${escapeHtml(serverData.main_serveur)} — <span class="review-time${mainTimeClass}"${mainTimeTitle}>${escapeHtml(mainReview.label)}</span></div>`;
       html += `<table>`;
       if (mainListings.length === 0) {
         html += `<tr><td colspan="3">Aucune annonce</td></tr>`;
@@ -64,11 +89,17 @@ document.addEventListener('DOMContentLoaded', async () => {
           </tr>`;
         });
       }
-      html += `</table></article>`;
+      html += `</table>`;
+      html += `<div class="observed-price-panel">`;
+      html += `<label class="observed-price-label" for="observed-price-${escapeHtml(itemId)}">Prix vu sur ton serveur</label>`;
+      html += `<input type="text" class="observed-price-input" id="observed-price-${escapeHtml(itemId)}" data-item-id="${escapeHtml(itemId)}" data-server-id="${escapeHtml(serverData.main_serveur_id)}" placeholder="ex: 12400" value="${escapeHtml(observedStored)}">`;
+      html += `</div></article>`;
 
       Object.keys(allOtherServers).forEach(serverId => {
         const otherListings = itemData[serverId] || [];
-        const hour = otherListings.length > 0 ? otherListings[0].lastReviewTime : '--:--';
+        const otherReview = getFirstListingReviewMeta(otherListings);
+        const otherTimeClass = otherReview.isStale ? ' review-time--stale' : '';
+        const otherTimeTitle = otherReview.isStale ? ` title="${staleTitle.replace(/"/g, '&quot;')}"` : '';
         let marginText = 'Marge estimée: --';
         if (bestMainListing && otherListings.length > 0) {
           const marginUnit = bestMainListing.pricePerUnit - otherListings[0].pricePerUnit;
@@ -77,7 +108,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         html += `<article class="serveur-values other-server">`;
-        html += `<div class="server-name">${escapeHtml(allOtherServers[serverId])} - ${escapeHtml(hour)}</div>`;
+        html += `<div class="server-name">${escapeHtml(allOtherServers[serverId])} — <span class="review-time${otherTimeClass}"${otherTimeTitle}>${escapeHtml(otherReview.label)}</span></div>`;
         html += `<table>`;
         if (otherListings.length === 0) {
           html += `<tr><td colspan="3">Aucune annonce</td></tr>`;
@@ -102,6 +133,23 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     detailContent.innerHTML = html;
     loadingPanel.style.display = 'none';
+
+    detailContent.addEventListener('input', (event) => {
+      const target = event.target;
+      if (!target || !target.classList || !target.classList.contains('observed-price-input')) {
+        return;
+      }
+      const itemKey = target.dataset.itemId;
+      const serverKey = target.dataset.serverId;
+      if (!itemKey || !serverKey) {
+        return;
+      }
+      try {
+        localStorage.setItem(`ff14_market_observed_${serverKey}_${itemKey}`, target.value);
+      } catch {
+        /* ignore */
+      }
+    });
 
     if (typeof window.applyMarketColors === 'function') {
       window.applyMarketColors();

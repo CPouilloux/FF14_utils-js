@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Top Items Actifs - Chaos</title>
+    <link href="/css/nav.css" rel="stylesheet">
+    <link href="/css/top-items.css" rel="stylesheet">
+</head>
+<body>
+<%- include('partials/nav', { currentPath }) %>
+
+<main class="page-container">
+    <section class="toolbar">
+        <div>
+            <h1>Top Items Actifs - Chaos</h1>
+            <p class="subtitle">
+                Mis a jour: <strong id="topItemsLastRefresh"><%= lastRefreshedAtLabel %></strong>
+                — <span id="topItemsTrackedCount"><%= typeof trackedItemsCount === 'number' ? trackedItemsCount : 0 %></span> items suivis (max 1000, agrandissement au fil des mises a jour)
+                — dernier lot: <span id="topItemsUniqueCount"><%= uniqueItemsCount %></span> uniques sur <span id="topItemsUpdatedCount"><%= updatedItemsCount %></span> mises a jour recentes
+            </p>
+        </div>
+        <button id="themeToggleBtn" type="button" class="theme-toggle-btn btn btn-secondary">Mode clair</button>
+    </section>
+
+    <% if (typeof pageError === 'string' && pageError) { %>
+        <section class="error-panel"><%= pageError %></section>
+    <% } %>
+
+    <section class="table-card">
+        <div id="topItemsLoadingOverlay" class="top-items-loading-overlay <%= typeof showTopItemsLoadingOverlay !== 'undefined' && showTopItemsLoadingOverlay ? '' : 'hidden' %>" role="status" aria-live="polite">
+            <div class="top-items-loading-inner">
+                <span class="top-items-loading-spinner" aria-hidden="true"></span>
+                <p class="top-items-loading-text">Chargement de la liste…</p>
+            </div>
+        </div>
+        <table class="top-items-table">
+            <thead>
+            <tr>
+                <th class="sortable-header" data-sort-key="name">Item <span class="sort-indicator"></span></th>
+                <th class="sortable-header sorted-desc" data-sort-key="velocity">Vitesse (ventes/semaine) <span class="sort-indicator">▼</span></th>
+                <th class="sortable-header" data-sort-key="avgPrice">Prix moyen <span class="sort-indicator"></span></th>
+                <th class="sortable-header" data-sort-key="minPrice">Prix minimum <span class="sort-indicator"></span></th>
+                <th class="sortable-header" data-sort-key="listings">Annonces actives <span class="sort-indicator"></span></th>
+            </tr>
+            </thead>
+            <tbody>
+            <% if (!topItems || topItems.length === 0) { %>
+                <tr>
+                    <td colspan="5" class="empty-state">Aucune donnee disponible.</td>
+                </tr>
+            <% } %>
+            <% if (topItems && topItems.length > 0) { %>
+                <% for (let i = 0; i < topItems.length; i++) { %>
+                    <% const row = topItems[i]; %>
+                    <tr
+                        class="clickable-row"
+                        data-item-id="<%= row.itemId %>"
+                        data-sort-name="<%= (row.name_fr || '').toLowerCase() %>"
+                        data-sort-velocity="<%= row.regularSaleVelocity %>"
+                        data-sort-avg-price="<%= row.averagePrice %>"
+                        data-sort-min-price="<%= row.minPrice %>"
+                        data-sort-listings="<%= row.listingsCount %>"
+                    >
+                        <td><%= row.name_fr %> <span class="item-id">(#<%= row.itemId %>)</span></td>
+                        <td><%= row.regularSaleVelocity.toFixed(2) %></td>
+                        <td><%= Math.round(row.averagePrice).toLocaleString('fr-FR') %> gils</td>
+                        <td><%= Math.round(row.minPrice).toLocaleString('fr-FR') %> gils</td>
+                        <td><%= Math.round(row.listingsCount).toLocaleString('fr-FR') %></td>
+                    </tr>
+                <% } %>
+            <% } %>
+            </tbody>
+        </table>
+    </section>
+</main>
+
+<script>
+    window.__TOP_ITEMS__ = <%- topItemsClientJson %>;
+</script>
+<script src="/js/theme_toggle.js"></script>
+<script src="/js/top_items_table.js"></script>
+</body>
+</html>

@@ -1,17 +1,109 @@
 const recuperationItemsFromFiles = require("./src/recuperation_items");
+const recuperationActionsFromFiles = require("./src/recuperation_actions");
 const {retrive_market_data, get_server_data} = require("./src/requete_market");
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
 const app = express();
-const port = 3000;
+const port = Number.parseInt(process.env.PORT, 10) || 3000;
 const SAVED_SEARCHES_FILE = path.join('data-files', 'saved_searches.json');
+const TOP_ITEMS_REFRESH_MS = 15 * 60 * 1000;
+const TOP_ITEMS_RECENT_ENTRIES = 100;
+const TOP_ITEMS_MARKET_ENTRIES = 3;
+const CHAOS_DATACENTER = 'chaos';
+const TRACKED_TOP_ITEMS_FILE = path.join('data-files', 'tracked_top_items.json');
+const MAX_TRACKED_TOP_ITEMS = 1000;
+const CHAOS_STATS_CHUNK_SIZE = 50;
+const CHAOS_STATS_CHUNK_DELAY_MS = 200;
+const CHAOS_STATS_MAX_RETRIES = 4;
+const CHAOS_STATS_RETRY_BASE_MS = 900;
+const UNIVERSALIS_RETRYABLE_STATUS = new Set([408, 429, 500, 502, 503, 504]);
 
 app.use(express.static('public'));
 app.set('view engine', 'ejs');
 app.use(express.json());
 
 let ff14_items;
+let topItemsCache = {
+    data: null,
+    lastRefreshedAt: null,
+    inFlightPromise: null
+};
+
+let actionTranslateByEn = null;
+let actionTranslatePairs = null;
+/** @type {'idle'|'loading'|'ready'|'error'} */
+let actionDictionaryPhase = 'idle';
+let actionDictionaryError = null;
+let actionDictionaryLoadPromise = null;
+
+function buildActionTranslatePairs(byEnglishName) {
+    return Object.entries(byEnglishName || {})
+        .map(([en, fr]) => ({ en, fr: fr || en }))
+        .sort((a, b) => b.en.length - a.en.length);
+}
+
+async function startActionDictionaryBackgroundLoad() {
+    if (actionDictionaryPhase === 'loading' || actionDictionaryPhase === 'ready') {
+        return actionDictionaryLoadPromise;
+    }
+    if (actionDictionaryPhase === 'error') {
+        actionDictionaryPhase = 'idle';
+        actionDictionaryError = null;
+    }
+
+    actionDictionaryPhase = 'loading';
+    actionDictionaryError = null;
+    actionTranslateByEn = null;
+    actionTranslatePairs = null;
+
+    actionDictionaryLoadPromise = (async () => {
+        console.log('[actions] Chargement du dictionnaire sorts (cache ou XIVAPI) en arrière-plan...');
+        try {
+            const byEnglishName = await recuperationActionsFromFiles();
+            actionTranslateByEn = byEnglishName;
+            actionTranslatePairs = buildActionTranslatePairs(byEnglishName);
+            actionDictionaryPhase = 'ready';
+            console.log(`[actions] Dictionnaire prêt (${Object.keys(byEnglishName).length} noms EN).`);
+        } catch (error) {
+            actionDictionaryPhase = 'error';
+            actionDictionaryError = error?.message || String(error);
+            console.error('[actions] Echec du chargement du dictionnaire:', error);
+        } finally {
+            actionDictionaryLoadPromise = null;
+        }
+    })();
+
+    return actionDictionaryLoadPromise;
+}
+
+function getMacroDictionaryStatePayload() {
+    return {
+        phase: actionDictionaryPhase,
+        ready: actionDictionaryPhase === 'ready',
+        entryCount: actionTranslateByEn ? Object.keys(actionTranslateByEn).length : 0,
+        error: actionDictionaryPhase === 'error' ? actionDictionaryError : null
+    };
+}
+
+function translateMacroSkillNames(text) {
+    if (typeof text !== 'string') {
+        return '';
+    }
+    if (!actionTranslatePairs || actionTranslatePairs.length === 0) {
+        return text;
+    }
+    let out = text;
+    for (let i = 0; i < actionTranslatePairs.length; i++) {
+        const { en, fr } = actionTranslatePairs[i];
+        if (!en) {
+            continue;
+        }
+        const escaped = en.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        out = out.replace(new RegExp(escaped, 'g'), fr);
+    }
+    return out;
+}
 
 
 async function init() {
@@ -54,6 +146,17 @@ function parsePositiveInt(value, fallback) {
         return fallback;
     }
     return parsed;
+}
+
+function formatDateTime(dateValue) {
+    if (!dateValue) {
+        return 'Jamais';
+    }
+    return new Date(dateValue).toLocaleString('fr-FR');
+}
+
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 function ensureDataDir() {
@@ -104,6 +207,274 @@ async function buildMarketDetailPayload(ids_param) {
     };
 }
 
+function toFiniteNumber(value, fallback = 0) {
+    const numeric = Number(value);
+    return Number.isFinite(numeric) ? numeric : fallback;
+}
+
+function normalizeTopItemStats(itemId, itemStats) {
+    const itemData = ff14_items?.[String(itemId)] || {};
+    const regularSaleVelocity = toFiniteNumber(itemStats?.regularSaleVelocity, 0);
+    const averagePrice = toFiniteNumber(itemStats?.averagePrice, 0);
+    const minPrice = toFiniteNumber(itemStats?.minPrice, 0);
+    const listingsCount = toFiniteNumber(itemStats?.listingsCount, 0);
+
+    return {
+        itemId: Number(itemId),
+        name_fr: itemData.name_fr || `Item ${itemId}`,
+        name_en: itemData.name_en || '',
+        regularSaleVelocity,
+        averagePrice,
+        minPrice,
+        listingsCount
+    };
+}
+
+async function fetchMostRecentlyUpdatedItems() {
+    const url = `https://universalis.app/api/v2/extra/stats/most-recently-updated?world=${CHAOS_DATACENTER}&entries=${TOP_ITEMS_RECENT_ENTRIES}`;
+    const response = await fetch(url);
+    if (!response.ok) {
+        throw new Error(`Universalis most-recently-updated error: ${response.status}`);
+    }
+    const payload = await response.json();
+    const entries = Array.isArray(payload?.items) ? payload.items : [];
+
+    const dedupedItemIds = [];
+    const seen = new Set();
+    entries.forEach(entry => {
+        const itemId = String(entry?.itemID || '').trim();
+        if (/^\d+$/.test(itemId) && !seen.has(itemId)) {
+            seen.add(itemId);
+            dedupedItemIds.push(itemId);
+        }
+    });
+
+    return { entries, dedupedItemIds };
+}
+
+function parseUniversalisChaosStatsPayload(payload) {
+    if (payload?.items && typeof payload.items === 'object') {
+        return payload.items;
+    }
+    if (payload?.itemID !== undefined) {
+        return { [payload.itemID]: payload };
+    }
+    return {};
+}
+
+async function fetchTopItemsMarketStatsHttpOnce(itemIds) {
+    const idsAsCsv = itemIds.join(',');
+    const url = `https://universalis.app/api/v2/${CHAOS_DATACENTER}/${idsAsCsv}?entries=${TOP_ITEMS_MARKET_ENTRIES}`;
+    const response = await fetch(url);
+    if (!response.ok) {
+        const err = new Error(`Universalis chaos stats error: ${response.status}`);
+        err.status = response.status;
+        throw err;
+    }
+    const payload = await response.json();
+    return parseUniversalisChaosStatsPayload(payload);
+}
+
+async function fetchTopItemsMarketStats(itemIds) {
+    if (!itemIds || itemIds.length === 0) {
+        return {};
+    }
+
+    let lastError = null;
+    for (let attempt = 1; attempt <= CHAOS_STATS_MAX_RETRIES; attempt++) {
+        try {
+            return await fetchTopItemsMarketStatsHttpOnce(itemIds);
+        } catch (error) {
+            lastError = error;
+            const status = error?.status ?? 0;
+            const canRetry = UNIVERSALIS_RETRYABLE_STATUS.has(status) && attempt < CHAOS_STATS_MAX_RETRIES;
+            if (!canRetry) {
+                break;
+            }
+            const waitMs = CHAOS_STATS_RETRY_BASE_MS * (2 ** (attempt - 1));
+            console.warn(`[top-items] Universalis HTTP ${status} (lot ${itemIds.length} ids), tentative ${attempt}/${CHAOS_STATS_MAX_RETRIES}, attente ${waitMs}ms...`);
+            await sleep(waitMs);
+        }
+    }
+
+    if (itemIds.length > 1) {
+        const mid = Math.floor(itemIds.length / 2);
+        console.warn(`[top-items] Decoupage du lot (${itemIds.length} ids) apres echecs — ${lastError?.message || 'erreur'}`);
+        const leftMap = await fetchTopItemsMarketStats(itemIds.slice(0, mid));
+        await sleep(CHAOS_STATS_CHUNK_DELAY_MS);
+        const rightMap = await fetchTopItemsMarketStats(itemIds.slice(mid));
+        return { ...leftMap, ...rightMap };
+    }
+
+    console.warn(`[top-items] Universalis : abandon pour l'item ${itemIds[0]} — ${lastError?.message || 'erreur'}`);
+    return {};
+}
+
+async function fetchTopItemsMarketStatsBatched(itemIds) {
+    const unique = [...new Set((itemIds || []).map(id => String(id).trim()).filter(id => /^\d+$/.test(id)))];
+    const merged = {};
+    for (let i = 0; i < unique.length; i += CHAOS_STATS_CHUNK_SIZE) {
+        const chunk = unique.slice(i, i + CHAOS_STATS_CHUNK_SIZE);
+        const part = await fetchTopItemsMarketStats(chunk);
+        Object.assign(merged, part);
+        if (i + CHAOS_STATS_CHUNK_SIZE < unique.length) {
+            await sleep(CHAOS_STATS_CHUNK_DELAY_MS);
+        }
+    }
+    return merged;
+}
+
+function loadTrackedTopItemLastSeen() {
+    try {
+        if (!fs.existsSync(TRACKED_TOP_ITEMS_FILE)) {
+            return {};
+        }
+        const raw = fs.readFileSync(TRACKED_TOP_ITEMS_FILE, 'utf8');
+        const parsed = JSON.parse(raw);
+        const map = parsed?.lastSeenById;
+        return map && typeof map === 'object' ? map : {};
+    } catch (error) {
+        console.error('[tracked-top-items] Erreur lecture:', error);
+        return {};
+    }
+}
+
+function saveTrackedTopItemLastSeen(lastSeenById) {
+    ensureDataDir();
+    fs.writeFileSync(
+        TRACKED_TOP_ITEMS_FILE,
+        JSON.stringify({ lastSeenById, updatedAt: new Date().toISOString() }, null, 2),
+        'utf8'
+    );
+}
+
+function mergeRecentIdsIntoTracked(lastSeenById, recentItemIds) {
+    const nowIso = new Date().toISOString();
+    const next = { ...lastSeenById };
+    recentItemIds.forEach(id => {
+        const key = String(id).trim();
+        if (/^\d+$/.test(key)) {
+            next[key] = nowIso;
+        }
+    });
+
+    const keys = Object.keys(next);
+    if (keys.length <= MAX_TRACKED_TOP_ITEMS) {
+        return next;
+    }
+
+    keys.sort((a, b) => {
+        const ta = new Date(next[a]).getTime();
+        const tb = new Date(next[b]).getTime();
+        return ta - tb;
+    });
+
+    const toRemove = keys.length - MAX_TRACKED_TOP_ITEMS;
+    for (let i = 0; i < toRemove; i++) {
+        delete next[keys[i]];
+    }
+    return next;
+}
+
+async function buildTopItemsPayload() {
+    await init();
+    const { entries, dedupedItemIds } = await fetchMostRecentlyUpdatedItems();
+    const trackedBefore = loadTrackedTopItemLastSeen();
+    const trackedAfter = mergeRecentIdsIntoTracked(trackedBefore, dedupedItemIds);
+    saveTrackedTopItemLastSeen(trackedAfter);
+
+    const candidateIds = Object.keys(trackedAfter);
+    const marketStatsMap = await fetchTopItemsMarketStatsBatched(candidateIds);
+    const rows = Object.keys(marketStatsMap).map(itemId => normalizeTopItemStats(itemId, marketStatsMap[itemId]));
+
+    rows.sort((a, b) => b.regularSaleVelocity - a.regularSaleVelocity);
+
+    return {
+        generatedAt: new Date().toISOString(),
+        updatedItemsCount: entries.length,
+        uniqueItemsCount: dedupedItemIds.length,
+        trackedItemsCount: candidateIds.length,
+        topItems: rows
+    };
+}
+
+async function refreshTopItemsCache() {
+    try {
+        const payload = await buildTopItemsPayload();
+        topItemsCache.data = payload;
+        topItemsCache.lastRefreshedAt = new Date().toISOString();
+        return topItemsCache.data;
+    } catch (error) {
+        console.error('[top-items-cache] Erreur refresh:', error);
+        if (topItemsCache.data) {
+            console.warn('[top-items-cache] Conservation des donnees precedentes jusqu au prochain essai reussi.');
+            return topItemsCache.data;
+        }
+        throw error;
+    }
+}
+
+function isTopItemsCacheStale() {
+    const now = Date.now();
+    const lastRefreshedMs = topItemsCache.lastRefreshedAt ? new Date(topItemsCache.lastRefreshedAt).getTime() : 0;
+    return !lastRefreshedMs || (now - lastRefreshedMs) >= TOP_ITEMS_REFRESH_MS;
+}
+
+function scheduleTopItemsRefreshIfNeeded(forceRefresh = false) {
+    if (!forceRefresh && topItemsCache.data && !isTopItemsCacheStale()) {
+        return;
+    }
+    if (!topItemsCache.inFlightPromise) {
+        topItemsCache.inFlightPromise = refreshTopItemsCache()
+            .finally(() => {
+                topItemsCache.inFlightPromise = null;
+            });
+    }
+}
+
+function peekTopItemsSnapshot() {
+    const data = topItemsCache.data;
+    const refreshPending = Boolean(topItemsCache.inFlightPromise);
+    if (data) {
+        return {
+            refreshPending,
+            lastRefreshedAt: topItemsCache.lastRefreshedAt,
+            topItems: Array.isArray(data.topItems) ? data.topItems : [],
+            updatedItemsCount: data.updatedItemsCount ?? 0,
+            uniqueItemsCount: data.uniqueItemsCount ?? 0,
+            trackedItemsCount: data.trackedItemsCount ?? 0,
+            generatedAt: data.generatedAt || null
+        };
+    }
+    return {
+        refreshPending,
+        lastRefreshedAt: topItemsCache.lastRefreshedAt,
+        topItems: [],
+        updatedItemsCount: 0,
+        uniqueItemsCount: 0,
+        trackedItemsCount: 0,
+        generatedAt: null
+    };
+}
+
+async function getTopItemsData(options = {}) {
+    const forceRefresh = options.forceRefresh === true;
+    if (!forceRefresh && topItemsCache.data && !isTopItemsCacheStale()) {
+        return topItemsCache.data;
+    }
+    scheduleTopItemsRefreshIfNeeded(forceRefresh);
+    if (topItemsCache.inFlightPromise) {
+        return topItemsCache.inFlightPromise;
+    }
+    return topItemsCache.data || {
+        topItems: [],
+        updatedItemsCount: 0,
+        uniqueItemsCount: 0,
+        trackedItemsCount: 0,
+        generatedAt: null
+    };
+}
+
 init();
 
 app.get('/', (req, res) => {
@@ -133,7 +504,8 @@ app.get('/', (req, res) => {
         perPage,
         totalItems,
         totalPages,
-        savedSearches: loadSavedSearches()
+        savedSearches: loadSavedSearches(),
+        currentPath: req.path
     });
 });
 
@@ -196,11 +568,120 @@ app.get('/marketDetail', async (req, res) => {
         }
         res.render('marketDetail', {
             ids_param: parseIdsParam(ids_param).join(","),
-            savedSearches: loadSavedSearches()
+            savedSearches: loadSavedSearches(),
+            currentPath: req.path
         });
     } catch (error) {
         console.error('[marketDetail] Erreur:', error);
         res.status(500).send("Erreur lors de la recuperation des donnees de marche.");
+    }
+});
+
+app.get('/top-items', (req, res) => {
+    try {
+        scheduleTopItemsRefreshIfNeeded(false);
+        const snap = peekTopItemsSnapshot();
+        const hasListRows = Array.isArray(snap.topItems) && snap.topItems.length > 0;
+        const showTopItemsLoadingOverlay = Boolean(snap.refreshPending && !hasListRows);
+        const topItemsClientJson = JSON.stringify({ refreshPending: snap.refreshPending });
+        res.render('top-items', {
+            topItems: snap.topItems,
+            updatedItemsCount: snap.updatedItemsCount,
+            uniqueItemsCount: snap.uniqueItemsCount,
+            trackedItemsCount: snap.trackedItemsCount,
+            lastRefreshedAtLabel: formatDateTime(snap.lastRefreshedAt),
+            topItemsRefreshPending: snap.refreshPending,
+            showTopItemsLoadingOverlay,
+            topItemsClientJson,
+            currentPath: req.path
+        });
+    } catch (error) {
+        console.error('[top-items] Erreur:', error);
+        res.status(500).render('top-items', {
+            topItems: [],
+            updatedItemsCount: 0,
+            uniqueItemsCount: 0,
+            trackedItemsCount: 0,
+            lastRefreshedAtLabel: formatDateTime(topItemsCache.lastRefreshedAt),
+            topItemsRefreshPending: false,
+            showTopItemsLoadingOverlay: false,
+            topItemsClientJson: JSON.stringify({ refreshPending: false }),
+            pageError: 'Impossible de preparer la page top items.',
+            currentPath: req.path
+        });
+    }
+});
+
+app.get('/macro-translate', (req, res) => {
+    const state = getMacroDictionaryStatePayload();
+    res.render('macro-translate', {
+        currentPath: req.path,
+        macroDictStateJson: JSON.stringify(state),
+        macroDictReady: state.ready === true
+    });
+});
+
+app.get('/api/macro-translate-status', (req, res) => {
+    try {
+        res.json(getMacroDictionaryStatePayload());
+    } catch (error) {
+        console.error('[api/macro-translate-status] Erreur:', error);
+        res.status(500).json({ error: 'Erreur serveur.' });
+    }
+});
+
+app.post('/api/macro-translate', (req, res) => {
+    try {
+        if (actionDictionaryPhase !== 'ready') {
+            const payload = getMacroDictionaryStatePayload();
+            if (actionDictionaryPhase === 'loading') {
+                return res.status(503).json({
+                    error: 'Le dictionnaire des sorts est encore en cours de chargement. Reessaie dans quelques instants.',
+                    ...payload
+                });
+            }
+            if (actionDictionaryPhase === 'error') {
+                return res.status(503).json({
+                    error: payload.error || 'Le dictionnaire des sorts n\'a pas pu etre charge. Redemarre le serveur ou supprime data-files/actions_cache.json si le fichier est corrompu.',
+                    ...payload
+                });
+            }
+            return res.status(503).json({
+                error: 'Le dictionnaire des sorts n\'est pas encore pret.',
+                ...payload
+            });
+        }
+
+        const text = typeof req.body?.text === 'string' ? req.body.text : '';
+        const translated = translateMacroSkillNames(text);
+        res.json({
+            translated,
+            entryCount: Object.keys(actionTranslateByEn || {}).length,
+            ...getMacroDictionaryStatePayload()
+        });
+    } catch (error) {
+        console.error('[api/macro-translate] Erreur:', error);
+        res.status(500).json({ error: 'Erreur lors de la traduction.' });
+    }
+});
+
+app.get('/api/top-items', (req, res) => {
+    try {
+        scheduleTopItemsRefreshIfNeeded(false);
+        const snap = peekTopItemsSnapshot();
+        res.json({
+            lastRefreshedAt: snap.lastRefreshedAt,
+            refreshPending: snap.refreshPending,
+            refreshIntervalMinutes: TOP_ITEMS_REFRESH_MS / 60000,
+            topItems: snap.topItems,
+            updatedItemsCount: snap.updatedItemsCount,
+            uniqueItemsCount: snap.uniqueItemsCount,
+            trackedItemsCount: snap.trackedItemsCount,
+            generatedAt: snap.generatedAt
+        });
+    } catch (error) {
+        console.error('[api/top-items] Erreur:', error);
+        res.status(500).json({ error: 'Erreur lors de la recuperation des top items.' });
     }
 });
 
@@ -218,6 +699,27 @@ app.get('/api/market-detail', async (req, res) => {
 });
 
 
-app.listen(port, () => {
+setImmediate(() => {
+    startActionDictionaryBackgroundLoad().catch(err => {
+        console.error('[actions] Erreur inattendue chargement arrière-plan:', err);
+    });
+});
+
+const server = app.listen(port, () => {
     console.log(`Serveur démarré sur http://localhost:${port}`);
 });
+
+server.on('error', (error) => {
+    if (error && error.code === 'EADDRINUSE') {
+        console.error(`[server] Le port ${port} est deja utilise. Ferme l'autre serveur ou lance avec PORT=3001 npm start`);
+        process.exit(1);
+    }
+    console.error('[server] Erreur au demarrage:', error);
+    process.exit(1);
+});
+
+setInterval(() => {
+    getTopItemsData({ forceRefresh: true }).catch(error => {
+        console.error('[top-items-cache] Erreur refresh auto:', error);
+    });
+}, TOP_ITEMS_REFRESH_MS);

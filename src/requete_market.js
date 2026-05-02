@@ -70,8 +70,13 @@ async function getDictDataFromUrl(url) {
 
 function convertTimestampToReadableDate(timestamp) {
   const date = new Date(timestamp * 1000);
-  const options = {  hour: '2-digit', minute: '2-digit'};
-  return date.toLocaleString('fr-FR', options);
+  return date.toLocaleString('fr-FR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
 }
 
 
@@ -102,6 +107,7 @@ function sortMarketDataByServer(data) {
                 listing_detail[property] = listing[property];
             });
             listing_detail["lastReviewTime"] = convertTimestampToReadableDate(listing["lastReviewTime"]);
+            listing_detail["lastReviewTimeUnix"] = listing["lastReviewTime"];
             tmp++;
             addToListInDict(server_listing_detail, listing_detail["worldID"], listing_detail);
         });

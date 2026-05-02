@@ -5,10 +5,12 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>FF14 Market Helper</title>
+  <link href="/css/nav.css" rel="stylesheet">
   <link href="/css/index.css" rel="stylesheet">
 </head>
 
 <body>
+  <%- include('partials/nav', { currentPath }) %>
   <main class="page-container">
     <section class="toolbar">
       <form class="filters" id="filtersForm" method="get" action="/">
