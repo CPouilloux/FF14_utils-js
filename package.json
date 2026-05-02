@@ -4,7 +4,8 @@
   "description": "projet js pour utiliser les api communautaire de ff14",
   "main": "app.js",
   "scripts": {
-    "start": "node app.js"
+    "start": "node app.js",
+    "update": "node scripts/update-from-github.js"
   },
   "dependencies": {
     "csv-parser": "^3.0.0",
