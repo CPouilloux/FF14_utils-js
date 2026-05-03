@@ -55,7 +55,32 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const serverData = payload.server_data;
     const allOtherServers = serverData.all_others_serveur || {};
-    const itemIds = Object.keys(payload.data || {});
+    const dataById = payload.data || {};
+    const itemsMapping = payload.items_mapping || {};
+    const requestedOrder = String(idsParam || '')
+      .split(',')
+      .map((id) => id.trim())
+      .filter((id) => /^\d+$/.test(id));
+    const itemIds = [];
+    const seen = new Set();
+    for (const id of requestedOrder) {
+      if (seen.has(id)) {
+        continue;
+      }
+      if (
+        !Object.prototype.hasOwnProperty.call(dataById, id) &&
+        !Object.prototype.hasOwnProperty.call(itemsMapping, id)
+      ) {
+        continue;
+      }
+      seen.add(id);
+      itemIds.push(id);
+    }
+    for (const id of Object.keys(dataById)) {
+      if (!seen.has(id)) {
+        itemIds.push(id);
+      }
+    }
     let html = '';
 
     itemIds.forEach(itemId => {

@@ -1,5 +1,12 @@
 const recuperationItemsFromFiles = require("./src/recuperation_items");
 const recuperationActionsFromFiles = require("./src/recuperation_actions");
+const recuperationRecipesFromFiles = require("./src/recuperation_recipes");
+const {
+    sanitizeSearchFragment,
+    searchRecipesInCache,
+    browseRecipesInCache,
+    formatRecipeDetailFromCache
+} = require("./src/recipe_xivapi");
 const {retrive_market_data, get_server_data} = require("./src/requete_market");
 const express = require('express');
 const fs = require('fs');
@@ -24,6 +31,8 @@ app.set('view engine', 'ejs');
 app.use(express.json());
 
 let ff14_items;
+/** @type {Record<string, object>|null} */
+let ff14_recipes = null;
 let topItemsCache = {
     data: null,
     lastRefreshedAt: null,
@@ -120,6 +129,9 @@ function translateMacroSkillNames(text) {
 async function init() {
     if (!ff14_items) {
         ff14_items = await recuperationItemsFromFiles();
+    }
+    if (!ff14_recipes) {
+        ff14_recipes = await recuperationRecipesFromFiles();
     }
 }
 
@@ -663,6 +675,60 @@ app.get('/macro-translate', (req, res) => {
         macroDictStateJson: JSON.stringify(state),
         macroDictReady: state.ready === true
     });
+});
+
+app.get('/craft', (req, res) => {
+    const qRaw = typeof req.query.q === 'string' ? req.query.q : '';
+    res.render('craft', {
+        currentPath: req.path,
+        initialQ: qRaw
+    });
+});
+
+app.get('/api/recipes/search', (req, res) => {
+    try {
+        const q = typeof req.query.q === 'string' ? req.query.q : '';
+        if (!ff14_recipes || !ff14_items) {
+            return res.status(503).json({
+                error: 'Cache recettes ou items indisponible. Patienter le chargement au demarrage ou supprime data-files/recipes_cache.json puis redemarre.'
+            });
+        }
+        const limit = Math.min(parsePositiveInt(req.query.limit, 120), 200);
+        const safe = sanitizeSearchFragment(q);
+        if (safe.length === 0) {
+            const browseLimit = Math.min(limit, 45);
+            const recipes = browseRecipesInCache(ff14_recipes, ff14_items, browseLimit);
+            return res.json({ recipes });
+        }
+        if (safe.length < 2) {
+            return res.json({ recipes: [] });
+        }
+        const { recipes } = searchRecipesInCache(ff14_recipes, ff14_items, q, limit);
+        res.json({ recipes });
+    } catch (error) {
+        console.error('[api/recipes/search]', error);
+        res.status(500).json({ error: 'Erreur lors de la recherche locale.' });
+    }
+});
+
+app.get('/api/recipe/:id', (req, res) => {
+    try {
+        const recipeId = Number.parseInt(req.params.id, 10);
+        if (!Number.isFinite(recipeId) || recipeId <= 0) {
+            return res.status(400).json({ error: 'ID recette invalide.' });
+        }
+        if (!ff14_recipes || !ff14_items) {
+            return res.status(503).json({ error: 'Caches non prets.' });
+        }
+        const detail = formatRecipeDetailFromCache(recipeId, ff14_recipes, ff14_items);
+        if (!detail) {
+            return res.status(404).json({ error: 'Recette introuvable.' });
+        }
+        res.json(detail);
+    } catch (error) {
+        console.error('[api/recipe/:id]', error);
+        res.status(500).json({ error: 'Erreur lors de la lecture de la recette.' });
+    }
 });
 
 app.get('/api/macro-translate-status', (req, res) => {

@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Recettes craft — FF14 Market Helper</title>
+  <link href="/css/nav.css" rel="stylesheet">
+  <link href="/css/index.css" rel="stylesheet">
+  <link href="/css/craft.css" rel="stylesheet">
+</head>
+<body>
+  <%- include('partials/nav', { currentPath }) %>
+  <main class="page-container craft-page">
+    <section class="toolbar">
+      <div class="craft-intro">
+        <h1 class="craft-title">Recettes de craft</h1>
+        <p class="craft-subtitle">
+          Les recettes sont lues depuis <code>data-files/recipes_cache.json</code> (téléchargement XIVAPI au premier lancement ou si le fichier est absent), comme pour la liste des objets. La recherche est <strong>100 % locale</strong> une fois le cache construit. Les noms d’objets viennent du cache items.
+        </p>
+      </div>
+      <button id="themeToggleBtn" type="button" class="theme-toggle-btn btn btn-secondary">Mode clair</button>
+    </section>
+
+    <section class="toolbar craft-search-bar">
+      <label class="craft-search-label" for="craftSearchInput">Nom de l’objet fabriqué</label>
+      <input type="text" id="craftSearchInput" class="craft-search-input" placeholder="Ex. iron hatchet, hachette…" value="<%= initialQ.replace(/"/g, '&quot;') %>" autocomplete="off">
+      <p id="craftSearchHint" class="craft-hint" role="status"></p>
+    </section>
+
+    <div class="craft-layout">
+      <section class="table-card craft-results">
+        <table id="dataTable">
+          <thead>
+            <tr>
+              <th></th>
+              <th>ID</th>
+              <th>Nom FR</th>
+              <th>Nom EN</th>
+            </tr>
+          </thead>
+          <tbody id="craftResultsBody">
+            <tr class="craft-placeholder-row">
+              <td colspan="4">Chargement de la liste…</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <aside class="craft-detail card-panel" id="craftDetailPanel" aria-live="polite">
+        <h2>Détail recette</h2>
+        <p id="craftDetailEmpty" class="craft-detail-empty">Sélectionne une recette dans la liste.</p>
+        <div id="craftDetailContent" class="hidden"></div>
+      </aside>
+    </div>
+  </main>
+
+  <script>
+    window.__CRAFT_INITIAL_Q__ = <%- JSON.stringify(initialQ || '') %>;
+  </script>
+  <script src="/js/craft.js"></script>
+  <script src="/js/theme_toggle.js"></script>
+</body>
+</html>

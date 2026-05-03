@@ -1,0 +1,121 @@
+.craft-page .craft-title {
+    margin: 0 0 6px;
+    font-size: 1.35rem;
+}
+
+.craft-page .craft-subtitle {
+    margin: 0;
+    color: #94a3b8;
+    font-size: 0.92rem;
+    max-width: 720px;
+}
+
+.craft-intro {
+    flex: 1;
+    min-width: 220px;
+}
+
+.craft-search-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+}
+
+.craft-search-label {
+    font-size: 0.88rem;
+    color: #cbd5e1;
+}
+
+.craft-search-input {
+    max-width: 480px;
+}
+
+.craft-hint {
+    margin: 0;
+    min-height: 1.2rem;
+    font-size: 0.85rem;
+    color: #94a3b8;
+}
+
+.craft-layout {
+    display: grid;
+    grid-template-columns: 1fr minmax(280px, 360px);
+    gap: 16px;
+    align-items: start;
+}
+
+@media (max-width: 900px) {
+    .craft-layout {
+        grid-template-columns: 1fr;
+    }
+}
+
+.craft-results tbody tr[data-recipe-id] {
+    cursor: pointer;
+}
+
+.craft-results tbody tr.is-selected {
+    background: rgba(56, 189, 248, 0.15);
+}
+
+.card-panel {
+    border-radius: 10px;
+    border: 1px solid #1f2937;
+    background: #111827;
+    padding: 16px 18px;
+}
+
+.craft-detail h2 {
+    margin: 0 0 10px;
+    font-size: 1.1rem;
+}
+
+.craft-detail-empty {
+    margin: 0;
+    color: #94a3b8;
+    font-size: 0.92rem;
+}
+
+.craft-detail .hidden {
+    display: none;
+}
+
+.craft-result-title {
+    font-weight: 600;
+}
+
+.craft-result-sub {
+    font-size: 0.82rem;
+    color: #94a3b8;
+}
+
+.craft-ingredients {
+    margin: 12px 0 0;
+    padding-left: 1.1rem;
+}
+
+.craft-ingredients li {
+    margin-bottom: 6px;
+}
+
+.craft-meta-line {
+    font-size: 0.88rem;
+    color: #cbd5e1;
+    margin: 6px 0;
+}
+
+.craft-link-market {
+    display: inline-block;
+    margin-top: 12px;
+}
+
+body.light-theme .craft-page .craft-subtitle,
+body.light-theme .craft-hint,
+body.light-theme .craft-detail-empty {
+    color: #64748b;
+}
+
+body.light-theme .card-panel {
+    background: #ffffff;
+    border-color: #e2e8f0;
+}
