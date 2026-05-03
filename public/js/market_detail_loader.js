@@ -5,6 +5,34 @@ document.addEventListener('DOMContentLoaded', async () => {
   const progressValue = document.getElementById('progressValue');
   const detailContent = document.getElementById('detailContent');
 
+  detailContent.addEventListener('click', (e) => {
+    const btn = e.target.closest('.market-detail-remove-item');
+    if (!btn) {
+      return;
+    }
+    e.preventDefault();
+    const itemId = btn.getAttribute('data-item-id');
+    const section = btn.closest('.div-item-tab[data-item-id]');
+    if (!section || !itemId) {
+      return;
+    }
+    section.remove();
+    const remaining = [...detailContent.querySelectorAll('.div-item-tab[data-item-id]')]
+      .map((el) => el.getAttribute('data-item-id'))
+      .filter(Boolean);
+    if (remaining.length === 0) {
+      window.location.href = '/';
+      return;
+    }
+    const csv = remaining.join(',');
+    window.__MARKET_DETAIL_IDS__ = csv;
+    try {
+      history.replaceState(null, '', `/marketDetail?ids=${encodeURIComponent(csv)}`);
+    } catch {
+      /* ignore */
+    }
+  });
+
   function escapeHtml(value) {
     return String(value)
       .replaceAll('&', '&amp;')
@@ -94,8 +122,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       const mainTimeTitle = mainReview.isStale ? ` title="${staleTitle.replace(/"/g, '&quot;')}"` : '';
       const observedStored = readObservedPrice(serverData.main_serveur_id, itemId);
 
-      html += `<section class="div-item-tab item-id-${escapeHtml(itemId)}">`;
-      html += `<h2 class="item-title">${escapeHtml(itemInfo.name_fr)} - ${escapeHtml(itemInfo.name_en)}</h2>`;
+      html += `<section class="div-item-tab item-id-${escapeHtml(itemId)}" data-item-id="${escapeHtml(itemId)}">`;
+      html += `<button type="button" class="market-detail-remove-item" data-item-id="${escapeHtml(itemId)}" aria-label="Retirer cet objet de la liste" title="Retirer de la liste">×</button>`;
+      html += `<div class="market-detail-heading-row"><button type="button" class="item-favorite-btn" data-item-id="${escapeHtml(itemId)}" aria-label="Ajouter aux favoris" aria-pressed="false">☆</button>`;
+      html += `<h2 class="item-title">${escapeHtml(itemInfo.name_fr)} - ${escapeHtml(itemInfo.name_en)}</h2></div>`;
       html += `<div class="servers-grid">`;
 
       html += `<article class="serveur-values main-server">`;
@@ -158,6 +188,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     detailContent.innerHTML = html;
     loadingPanel.style.display = 'none';
+
+    if (window.ItemFavorites && typeof window.ItemFavorites.resync === 'function') {
+      window.ItemFavorites.resync();
+    }
 
     detailContent.addEventListener('input', (event) => {
       const target = event.target;

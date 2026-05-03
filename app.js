@@ -19,6 +19,7 @@ const TOP_ITEMS_RECENT_ENTRIES = 100;
 const TOP_ITEMS_MARKET_ENTRIES = 3;
 const CHAOS_DATACENTER = 'chaos';
 const TRACKED_TOP_ITEMS_FILE = path.join('data-files', 'tracked_top_items.json');
+const ITEM_FAVORITES_FILE = path.join('data-files', 'item_favorites.json');
 const MAX_TRACKED_TOP_ITEMS = 1000;
 const CHAOS_STATS_CHUNK_SIZE = 50;
 const CHAOS_STATS_CHUNK_DELAY_MS = 200;
@@ -206,6 +207,33 @@ function loadSavedSearches() {
 function saveSavedSearches(searches) {
     ensureDataDir();
     fs.writeFileSync(SAVED_SEARCHES_FILE, JSON.stringify(searches, null, 2), 'utf8');
+}
+
+function loadItemFavorites() {
+    try {
+        if (!fs.existsSync(ITEM_FAVORITES_FILE)) {
+            return [];
+        }
+        const raw = fs.readFileSync(ITEM_FAVORITES_FILE, 'utf8');
+        const parsed = JSON.parse(raw);
+        if (!Array.isArray(parsed)) {
+            return [];
+        }
+        return parsed
+            .map((id) => String(id).trim())
+            .filter((id) => /^\d+$/.test(id));
+    } catch (error) {
+        console.error('[item-favorites] Erreur lecture:', error);
+        return [];
+    }
+}
+
+function saveItemFavorites(ids) {
+    ensureDataDir();
+    const unique = [...new Set(ids.map((id) => String(id).trim()).filter((id) => /^\d+$/.test(id)))].sort(
+        (a, b) => Number(a) - Number(b)
+    );
+    fs.writeFileSync(ITEM_FAVORITES_FILE, JSON.stringify(unique, null, 2), 'utf8');
 }
 
 function buildSavedSearchId() {
@@ -543,6 +571,31 @@ app.get('/', (req, res) => {
     });
 });
 
+app.get('/favorites', async (req, res) => {
+    try {
+        await init();
+        const ids = loadItemFavorites();
+        const items = ids.map((id) => {
+            const it = ff14_items && ff14_items[id];
+            return {
+                id,
+                name_fr: it ? it.name_fr : '',
+                name_en: it ? it.name_en : '',
+                missing: !it
+            };
+        });
+        const marketIdsCsv = ids.join(',');
+        res.render('favorites', {
+            items,
+            marketIdsCsv,
+            currentPath: req.path
+        });
+    } catch (error) {
+        console.error('[favorites]', error);
+        res.status(500).send('Erreur lors du chargement des favoris.');
+    }
+});
+
 app.get('/api/items', (req, res) => {
     try {
         const state = getIndexListState(req.query);
@@ -612,6 +665,41 @@ app.delete('/api/saved-searches/:id', (req, res) => {
         res.status(204).send();
     } catch (error) {
         console.error('[saved-searches] Erreur suppression:', error);
+        res.status(500).json({ error: 'Erreur serveur.' });
+    }
+});
+
+app.get('/api/item-favorites', (req, res) => {
+    try {
+        res.json({ ids: loadItemFavorites() });
+    } catch (error) {
+        console.error('[api/item-favorites]', error);
+        res.status(500).json({ error: 'Erreur serveur.' });
+    }
+});
+
+app.post('/api/item-favorites/toggle', (req, res) => {
+    try {
+        const raw = req.body?.itemId;
+        const itemId = raw != null ? String(raw).trim() : '';
+        if (!/^\d+$/.test(itemId)) {
+            return res.status(400).json({ error: 'ID item invalide.' });
+        }
+        const ids = loadItemFavorites();
+        const idx = ids.indexOf(itemId);
+        let favorite;
+        let next;
+        if (idx >= 0) {
+            next = ids.filter((_, i) => i !== idx);
+            favorite = false;
+        } else {
+            next = ids.concat([itemId]);
+            favorite = true;
+        }
+        saveItemFavorites(next);
+        res.json({ id: itemId, favorite });
+    } catch (error) {
+        console.error('[api/item-favorites/toggle]', error);
         res.status(500).json({ error: 'Erreur serveur.' });
     }
 });

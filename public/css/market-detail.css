@@ -128,12 +128,65 @@ body {
 }
 
 .div-item-tab {
+    position: relative;
     margin-bottom: 22px;
     background: #111827;
     border: 1px solid #1f2937;
     border-radius: 12px;
     padding: 8px;
+    padding-top: 36px;
     box-shadow: 0 8px 18px rgba(0, 0, 0, 0.2);
+}
+
+.market-detail-remove-item {
+    position: absolute;
+    top: 8px;
+    right: 10px;
+    z-index: 2;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    margin: 0;
+    border: 1px solid #475569;
+    border-radius: 8px;
+    background: #1e293b;
+    color: #94a3b8;
+    font-size: 1.35rem;
+    line-height: 1;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.market-detail-remove-item:hover {
+    background: #334155;
+    color: #f1f5f9;
+    border-color: #64748b;
+}
+
+.market-detail-remove-item:focus-visible {
+    outline: 2px solid #38bdf8;
+    outline-offset: 2px;
+}
+
+.market-detail-heading-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin: 4px 4px 10px;
+    flex-wrap: wrap;
+}
+
+.market-detail-heading-row .item-favorite-btn {
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+
+.market-detail-heading-row .item-title {
+    margin: 0;
+    flex: 1;
+    min-width: 200px;
 }
 
 .item-title {
@@ -291,6 +344,7 @@ tr td[colspan] {
 
     .div-item-tab {
         padding: 10px;
+        padding-top: 38px;
     }
 }
 
@@ -327,6 +381,18 @@ body.light-theme .div-item-tab {
     background: #ffffff;
     border-color: #cbd5e1;
     box-shadow: 0 6px 14px rgba(15, 23, 42, 0.08);
+}
+
+body.light-theme .market-detail-remove-item {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+    color: #64748b;
+}
+
+body.light-theme .market-detail-remove-item:hover {
+    background: #e2e8f0;
+    color: #0f172a;
+    border-color: #94a3b8;
 }
 
 body.light-theme .item-title {

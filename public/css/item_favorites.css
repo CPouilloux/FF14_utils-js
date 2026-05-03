@@ -1,0 +1,117 @@
+.item-favorite-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 2rem;
+    padding: 2px 4px;
+    margin: 0;
+    border: none;
+    background: transparent;
+    color: #64748b;
+    font-size: 1.15rem;
+    line-height: 1;
+    cursor: pointer;
+    border-radius: 4px;
+}
+
+.item-favorite-btn:hover {
+    color: #e2e8f0;
+    background: rgba(148, 163, 184, 0.12);
+}
+
+.item-favorite-btn--on {
+    color: #fbbf24;
+}
+
+.item-favorite-btn--on:hover {
+    color: #fcd34d;
+}
+
+body.light-theme .item-favorite-btn {
+    color: #94a3b8;
+}
+
+body.light-theme .item-favorite-btn:hover {
+    color: #475569;
+    background: rgba(148, 163, 184, 0.2);
+}
+
+body.light-theme .item-favorite-btn--on {
+    color: #d97706;
+}
+
+#dataTable th.favorite-col,
+#dataTable td.favorite-col {
+    width: 2.5rem;
+    text-align: center;
+    vertical-align: middle;
+}
+
+.craft-ingredient-line {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin-bottom: 8px;
+    list-style: none;
+}
+
+.craft-ingredient-line .item-favorite-btn {
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+
+.craft-ingredient-text {
+    flex: 1;
+}
+
+.craft-ingredients-fav {
+    padding-left: 0;
+    list-style: none;
+}
+
+.craft-detail-heading-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: 6px;
+}
+
+.craft-detail-heading-row .craft-result-title {
+    margin: 0;
+    flex: 1;
+}
+
+.craft-detail-heading-row .item-favorite-btn {
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+
+.favorites-toolbar {
+    align-items: flex-start;
+    gap: 12px;
+}
+
+.favorites-intro {
+    flex: 1;
+    min-width: 200px;
+}
+
+.favorites-title {
+    margin: 0 0 6px;
+    font-size: 1.35rem;
+}
+
+.favorites-subtitle {
+    margin: 0;
+    color: #94a3b8;
+    font-size: 0.92rem;
+    max-width: 720px;
+}
+
+.favorites-actions {
+    margin-bottom: 0;
+}
+
+body.light-theme .favorites-subtitle {
+    color: #64748b;
+}

@@ -70,6 +70,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 (item) => `
         <tr>
           <td><input type="checkbox" class="itemCheckbox" data-id="${escapeHtml(item.id)}"></td>
+          <td class="favorite-col"><button type="button" class="item-favorite-btn" data-item-id="${escapeHtml(item.id)}" aria-label="Ajouter aux favoris" aria-pressed="false">☆</button></td>
           <td><div class="item_id" data-checkbox-id="${escapeHtml(item.id)}">${escapeHtml(item.id)}</div></td>
           <td><div class="name_fr" data-checkbox-id="${escapeHtml(item.id)}">${escapeHtml(item.name_fr)}</div></td>
           <td><div class="name_en" data-checkbox-id="${escapeHtml(item.id)}">${escapeHtml(item.name_en)}</div></td>
@@ -77,6 +78,9 @@ document.addEventListener('DOMContentLoaded', () => {
             )
             .join('');
         syncCheckboxesFromSet();
+        if (window.ItemFavorites && typeof window.ItemFavorites.resync === 'function') {
+            window.ItemFavorites.resync();
+        }
     }
 
     function updatePaginationFromJson(json) {
@@ -177,12 +181,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (uncheckAllBtn) {
         uncheckAllBtn.addEventListener('click', () => {
+            selectedIds.clear();
             dataTable.querySelectorAll('.itemCheckbox').forEach((checkbox) => {
-                const id = checkbox.getAttribute('data-id');
                 checkbox.checked = false;
-                if (id) {
-                    selectedIds.delete(id);
-                }
             });
             refreshSelectionDisplay();
         });
@@ -190,6 +191,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     dataTable.addEventListener('click', (event) => {
         if (event.target.closest('input[type="checkbox"]')) {
+            return;
+        }
+        if (event.target.closest('.item-favorite-btn')) {
             return;
         }
 

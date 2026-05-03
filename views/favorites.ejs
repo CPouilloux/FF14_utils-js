@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mes favoris — FF14 Market Helper</title>
+  <link href="/css/nav.css" rel="stylesheet">
+  <link href="/css/index.css" rel="stylesheet">
+  <link href="/css/item_favorites.css" rel="stylesheet">
+</head>
+<body>
+  <%- include('partials/nav', { currentPath }) %>
+  <main class="page-container">
+    <section class="toolbar favorites-toolbar">
+      <div class="favorites-intro">
+        <h1 class="favorites-title">Mes favoris</h1>
+        <p class="favorites-subtitle">Objets marqués avec l’étoile. Données locales : <code>data-files/item_favorites.json</code> (non versionné).</p>
+      </div>
+      <button id="themeToggleBtn" type="button" class="theme-toggle-btn btn btn-secondary">Mode clair</button>
+    </section>
+
+    <section class="toolbar favorites-actions">
+      <% if (items.length > 0) { %>
+        <a class="btn btn-success" href="/marketDetail?ids=<%= encodeURIComponent(marketIdsCsv) %>" target="_blank" rel="noopener">Voir le marché (tous les favoris)</a>
+      <% } %>
+    </section>
+
+    <% if (items.length > 0) { %>
+    <section class="selection-panel">
+      <h2>Sélection pour le marché</h2>
+      <div id="favoritesCheckedIds">Aucun item sélectionné.</div>
+      <div class="selection-actions">
+        <button id="favoritesCheckAllBtn" type="button" class="btn btn-secondary">Tout sélectionner (max 20)</button>
+        <button id="favoritesUncheckAllBtn" type="button" class="btn btn-secondary">Tout décocher</button>
+        <button id="favoritesOpenMarketBtn" type="button" class="btn btn-success">Marché (sélection uniquement)</button>
+      </div>
+    </section>
+    <% } %>
+
+    <section class="table-card">
+      <table id="dataTable">
+        <thead>
+          <tr>
+            <th></th>
+            <th class="favorite-col" title="Favoris"></th>
+            <th>ID</th>
+            <th>Nom FR</th>
+            <th>Nom EN</th>
+          </tr>
+        </thead>
+        <tbody id="favoritesTableBody">
+        <% if (items.length === 0) { %>
+          <tr class="favorite-empty-row">
+            <td colspan="5">Aucun favori pour le moment. Ajoute-en depuis la liste des objets ou les pages craft.</td>
+          </tr>
+        <% } %>
+        <% for (let i = 0; i < items.length; i++) { %>
+        <% const row = items[i]; %>
+        <tr data-favorite-row="1" data-item-id="<%= row.id %>">
+          <td><input type="checkbox" class="itemCheckbox" data-id="<%= row.id %>"></td>
+          <td class="favorite-col">
+            <button type="button" class="item-favorite-btn item-favorite-btn--on" data-item-id="<%= row.id %>" aria-label="Retirer des favoris" aria-pressed="true">★</button>
+          </td>
+          <td><div class="item_id" data-checkbox-id="<%= row.id %>"><%= row.id %></div></td>
+          <td><div class="name_fr" data-checkbox-id="<%= row.id %>"><%= row.missing ? '— (absent du cache items)' : row.name_fr %></div></td>
+          <td><div class="name_en" data-checkbox-id="<%= row.id %>"><%= row.missing ? '—' : row.name_en %></div></td>
+        </tr>
+        <% } %>
+        </tbody>
+      </table>
+    </section>
+  </main>
+  <script src="/js/item_favorites.js"></script>
+  <script src="/js/favorites_page.js"></script>
+  <script src="/js/theme_toggle.js"></script>
+</body>
+</html>

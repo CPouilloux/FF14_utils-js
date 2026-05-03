@@ -24,7 +24,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderPlaceholder(msg) {
-        tbody.innerHTML = `<tr class="craft-placeholder-row"><td colspan="4">${escapeHtml(msg)}</td></tr>`;
+        tbody.innerHTML = `<tr class="craft-placeholder-row"><td colspan="5">${escapeHtml(msg)}</td></tr>`;
     }
 
     function renderResults(recipes) {
@@ -32,17 +32,26 @@ document.addEventListener('DOMContentLoaded', () => {
             renderPlaceholder('Aucune recette trouvée pour cette recherche.');
             return;
         }
+        const rid = (r) => escapeHtml(String(r.resultItemId != null ? r.resultItemId : ''));
         tbody.innerHTML = recipes
             .map(
                 (r) => `
       <tr data-recipe-id="${escapeHtml(String(r.recipeId))}">
         <td></td>
+        <td class="favorite-col">${
+            /^\d+$/.test(String(r.resultItemId))
+                ? `<button type="button" class="item-favorite-btn" data-item-id="${rid(r)}" aria-label="Ajouter aux favoris" aria-pressed="false">☆</button>`
+                : ''
+        }</td>
         <td><div class="item_id">${escapeHtml(String(r.resultItemId != null ? r.resultItemId : '—'))}</div></td>
         <td><div class="name_fr">${escapeHtml(r.nameFr || '')}</div></td>
         <td><div class="name_en">${escapeHtml(r.nameEn || '')}</div></td>
       </tr>`
             )
             .join('');
+        if (window.ItemFavorites && typeof window.ItemFavorites.resync === 'function') {
+            window.ItemFavorites.resync();
+        }
     }
 
     async function runSearch() {
@@ -104,6 +113,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     tbody.addEventListener('click', async (e) => {
+        if (e.target.closest('.item-favorite-btn')) {
+            return;
+        }
         const tr = e.target.closest('tr[data-recipe-id]');
         if (!tr) {
             return;
@@ -128,15 +140,28 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!res.ok) {
                 throw new Error(d.error || `Erreur ${res.status}`);
             }
+            const resultItemIdStr = String(d.resultItemId != null ? d.resultItemId : '').trim();
+            const resultStar =
+                /^\d+$/.test(resultItemIdStr)
+                    ? `<button type="button" class="item-favorite-btn" data-item-id="${escapeHtml(
+                          resultItemIdStr
+                      )}" aria-label="Ajouter aux favoris" aria-pressed="false">☆</button>`
+                    : '';
             const lines = (d.ingredients || [])
-                .map(
-                    (ing) =>
-                        `<li><strong>${escapeHtml(ing.nameFr || ing.nameEn)}</strong> × ${escapeHtml(
-                            String(ing.amount)
-                        )} <span class="craft-result-sub">(${escapeHtml(ing.nameEn || '')} · #${escapeHtml(
-                            ing.itemId
-                        )})</span></li>`
-                )
+                .map((ing) => {
+                    const iid = String(ing.itemId != null ? ing.itemId : '').trim();
+                    const star =
+                        /^\d+$/.test(iid)
+                            ? `<button type="button" class="item-favorite-btn" data-item-id="${escapeHtml(
+                                  iid
+                              )}" aria-label="Ajouter aux favoris" aria-pressed="false">☆</button>`
+                            : '';
+                    return `<li class="craft-ingredient-line">${star}<span class="craft-ingredient-text"><strong>${escapeHtml(
+                        ing.nameFr || ing.nameEn
+                    )}</strong> × ${escapeHtml(String(ing.amount))} <span class="craft-result-sub">(${escapeHtml(
+                        ing.nameEn || ''
+                    )} · #${escapeHtml(ing.itemId)})</span></span></li>`;
+                })
                 .join('');
             const resultId = String(d.resultItemId != null ? d.resultItemId : '').trim();
             const seen = new Set();
@@ -159,15 +184,20 @@ document.addEventListener('DOMContentLoaded', () => {
                     ? `<a class="btn btn-success craft-link-market" href="${marketUrl}" target="_blank" rel="noopener">Voir les prix (objet crafté + ingrédients)</a>`
                     : `<span class="btn btn-secondary craft-link-market" aria-disabled="true">Voir les prix (IDs indisponibles)</span>`;
             detailContent.innerHTML = `
-        <h3 class="craft-result-title">${escapeHtml(d.nameFr || d.nameEn)}</h3>
+        <div class="craft-detail-heading-row">${resultStar}<h3 class="craft-result-title">${escapeHtml(
+                d.nameFr || d.nameEn
+            )}</h3></div>
         <p class="craft-result-sub">${escapeHtml(d.nameEn || '')}</p>
         <p class="craft-meta-line">Niveau ${d.level != null ? escapeHtml(String(d.level)) : '—'} · ${escapeHtml(
                 d.craftType || ''
             )} · résultat × ${escapeHtml(String(d.amountResult != null ? d.amountResult : 1))}</p>
         <h4 class="craft-ingredients-title">Ingrédients</h4>
-        <ul class="craft-ingredients">${lines || '<li>Aucun ingrédient listé.</li>'}</ul>
+        <ul class="craft-ingredients craft-ingredients-fav">${lines || '<li>Aucun ingrédient listé.</li>'}</ul>
         ${marketBtn}
       `;
+            if (window.ItemFavorites && typeof window.ItemFavorites.resync === 'function') {
+                window.ItemFavorites.resync();
+            }
         } catch (err) {
             detailContent.innerHTML = `<p class="craft-hint">${escapeHtml(err.message || 'Erreur')}</p>`;
         }

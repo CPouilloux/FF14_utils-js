@@ -7,6 +7,7 @@
   <title>FF14 Market Helper</title>
   <link href="/css/nav.css" rel="stylesheet">
   <link href="/css/index.css" rel="stylesheet">
+  <link href="/css/item_favorites.css" rel="stylesheet">
 </head>
 
 <body>
@@ -68,6 +69,7 @@
         <thead>
         <tr>
           <th></th>
+          <th class="favorite-col" title="Favoris"></th>
           <th>ID</th>
           <th>Nom FR</th>
           <th>Nom EN</th>
@@ -78,6 +80,7 @@
         <% const item = data[i]; %>
         <tr>
           <td><input type="checkbox" class="itemCheckbox" data-id="<%= item.id %>"></td>
+          <td class="favorite-col"><button type="button" class="item-favorite-btn" data-item-id="<%= item.id %>" aria-label="Ajouter aux favoris" aria-pressed="false">☆</button></td>
           <td><div class="item_id" data-checkbox-id="<%= item.id %>"><%= item.id %></div></td>
           <td><div class="name_fr" data-checkbox-id="<%= item.id %>"><%= item.name_fr %></div></td>
           <td><div class="name_en" data-checkbox-id="<%= item.id %>"><%= item.name_en %></div></td>
@@ -109,6 +112,7 @@
       perPage: <%= perPage %>
     };
   </script>
+  <script src="/js/item_favorites.js"></script>
   <script src="/js/filter_list.js"></script>
   <script src="/js/theme_toggle.js"></script>
   <script>
