@@ -63,6 +63,52 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
+  const MARGIN_MIN_LS = 'ff14_market_margin_min_pct';
+
+  function applyMarginMinMask(root) {
+    if (!root) {
+      return;
+    }
+    const marginInput = document.getElementById('marketMarginMinInput');
+    const raw = marginInput ? String(marginInput.value || '').trim() : '';
+    const minVal = parseFloat(raw.replace(',', '.'));
+    const threshold = Number.isFinite(minVal) && minVal > 0 ? minVal : null;
+
+    root.querySelectorAll('.other-server tr[data-estimated-margin-pct]').forEach((row) => {
+      const p = row.getAttribute('data-estimated-margin-pct');
+      const v = p === '' || p == null ? NaN : parseFloat(String(p));
+      if (threshold == null || !Number.isFinite(v)) {
+        row.classList.remove('market-margin-below-min');
+        return;
+      }
+      if (v < threshold) {
+        row.classList.add('market-margin-below-min');
+      } else {
+        row.classList.remove('market-margin-below-min');
+      }
+    });
+  }
+
+  const marginInputEl = document.getElementById('marketMarginMinInput');
+  if (marginInputEl) {
+    try {
+      const saved = localStorage.getItem(MARGIN_MIN_LS);
+      if (saved != null && saved !== '') {
+        marginInputEl.value = saved;
+      }
+    } catch {
+      /* ignore */
+    }
+    marginInputEl.addEventListener('input', () => {
+      try {
+        localStorage.setItem(MARGIN_MIN_LS, marginInputEl.value);
+      } catch {
+        /* ignore */
+      }
+      applyMarginMinMask(detailContent);
+    });
+  }
+
   let progress = 8;
   progressValue.style.width = `${progress}%`;
   const progressInterval = setInterval(() => {
@@ -115,7 +161,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       const itemInfo = payload.items_mapping[itemId] || { name_fr: `Item ${itemId}`, name_en: '' };
       const itemData = payload.data[itemId] || {};
       const mainListings = itemData[serverData.main_serveur_id] || [];
-      const bestMainListing = mainListings.length > 0 ? mainListings[0] : null;
+      const cheapestMain = mainListings.length > 0 ? mainListings[0] : null;
       const mainReview = getFirstListingReviewMeta(mainListings);
       const mainTimeClass = mainReview.isStale ? ' review-time--stale' : '';
       const staleTitle = 'Derniere annonce Universalis : plus de 24 h — les donnees peuvent etre perimees.';
@@ -155,12 +201,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         const otherReview = getFirstListingReviewMeta(otherListings);
         const otherTimeClass = otherReview.isStale ? ' review-time--stale' : '';
         const otherTimeTitle = otherReview.isStale ? ` title="${staleTitle.replace(/"/g, '&quot;')}"` : '';
-        let marginText = 'Marge estimée: --';
-        if (bestMainListing && otherListings.length > 0) {
-          const marginUnit = bestMainListing.pricePerUnit - otherListings[0].pricePerUnit;
-          const marginPercent = ((marginUnit / otherListings[0].pricePerUnit) * 100).toFixed(1);
-          marginText = `Marge estimée: <strong>${escapeHtml(marginUnit)}</strong>/u (${escapeHtml(marginPercent)}%)`;
-        }
 
         html += `<article class="serveur-values other-server">`;
         html += `<div class="server-name">${escapeHtml(allOtherServers[serverId])} — <span class="review-time${otherTimeClass}"${otherTimeTitle}>${escapeHtml(otherReview.label)}</span></div>`;
@@ -168,10 +208,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (otherListings.length === 0) {
           html += `<tr><td colspan="3">Aucune annonce</td></tr>`;
         } else {
-          otherListings.slice(0, 10).forEach(listing => {
+          otherListings.slice(0, 10).forEach((listing) => {
             const qualityLabel = listing.hq ? 'HQ' : 'NQ';
             const qualityClass = listing.hq ? 'quality-hq' : 'quality-nq';
-            html += `<tr>
+            let rowPctAttr = '';
+            if (cheapestMain && listing.pricePerUnit > 0) {
+              const marginUnit = cheapestMain.pricePerUnit - listing.pricePerUnit;
+              const marginPctNum = (marginUnit / listing.pricePerUnit) * 100;
+              if (Number.isFinite(marginPctNum)) {
+                rowPctAttr = String(marginPctNum);
+              }
+            }
+            html += `<tr data-estimated-margin-pct="${rowPctAttr}">
               <td class="other-price">${escapeHtml(listing.pricePerUnit)}</td>
               <td class="other-quantity"><span class="quality-badge ${qualityClass}">${qualityLabel}</span> * ${escapeHtml(listing.quantity)} =</td>
               <td class="other-total">${escapeHtml(listing.total)}</td>
@@ -179,7 +227,18 @@ document.addEventListener('DOMContentLoaded', async () => {
           });
         }
         html += `</table>`;
+
+        let marginText = 'Marge estimée: --';
+        if (cheapestMain && otherListings.length > 0) {
+          const secPpu = otherListings[0].pricePerUnit;
+          if (secPpu > 0) {
+            const marginUnit = cheapestMain.pricePerUnit - secPpu;
+            const marginPercent = ((marginUnit / secPpu) * 100).toFixed(1);
+            marginText = `Marge estimée: <strong>${escapeHtml(marginUnit)}</strong>/u (${escapeHtml(marginPercent)}%)`;
+          }
+        }
         html += `<div class="estimated-margin">${marginText}</div>`;
+
         html += `</article>`;
       });
 
@@ -192,6 +251,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (window.ItemFavorites && typeof window.ItemFavorites.resync === 'function') {
       window.ItemFavorites.resync();
     }
+
+    applyMarginMinMask(detailContent);
 
     detailContent.addEventListener('input', (event) => {
       const target = event.target;

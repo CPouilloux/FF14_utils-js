@@ -8,6 +8,15 @@ const {
     formatRecipeDetailFromCache
 } = require("./src/recipe_xivapi");
 const {retrive_market_data, get_server_data} = require("./src/requete_market");
+const {
+    MARKET_SERVERS_CONFIG_FILE,
+    loadMarketServersConfig,
+    saveMarketServersConfig,
+    sanitizeConfig: sanitizeMarketServersConfig,
+    buildGroupedWorldsForView,
+    getMarketWorldById,
+    buildDatacentersToQuery
+} = require("./src/market_servers_config");
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
@@ -248,8 +257,10 @@ async function buildMarketDetailPayload(ids_param) {
 
     const ids_as_csv = item_ids.join(",");
     const items_mapping = getItemNameFromIds(item_ids);
-    const json_data = await retrive_market_data(ids_as_csv);
-    const server_data = get_server_data();
+    const marketConfig = loadMarketServersConfig();
+    const datacenters = buildDatacentersToQuery(marketConfig);
+    const json_data = await retrive_market_data(ids_as_csv, datacenters);
+    const server_data = get_server_data(marketConfig, getMarketWorldById);
 
     return {
         data: json_data,
@@ -596,6 +607,24 @@ app.get('/favorites', async (req, res) => {
     }
 });
 
+app.get('/market-servers', (req, res) => {
+    try {
+        const config = loadMarketServersConfig();
+        const groups = buildGroupedWorldsForView(config);
+        const mainMeta = getMarketWorldById(config.mainWorldId);
+        res.render('market-servers', {
+            currentPath: req.path,
+            groups,
+            config,
+            configFile: MARKET_SERVERS_CONFIG_FILE,
+            currentMainName: mainMeta ? mainMeta.name : `#${config.mainWorldId}`
+        });
+    } catch (error) {
+        console.error('[market-servers]', error);
+        res.status(500).send('Erreur lors du chargement de la configuration des serveurs.');
+    }
+});
+
 app.get('/api/items', (req, res) => {
     try {
         const state = getIndexListState(req.query);
@@ -700,6 +729,29 @@ app.post('/api/item-favorites/toggle', (req, res) => {
         res.json({ id: itemId, favorite });
     } catch (error) {
         console.error('[api/item-favorites/toggle]', error);
+        res.status(500).json({ error: 'Erreur serveur.' });
+    }
+});
+
+app.get('/api/market-servers-settings', (req, res) => {
+    try {
+        res.json({ config: loadMarketServersConfig() });
+    } catch (error) {
+        console.error('[api/market-servers-settings]', error);
+        res.status(500).json({ error: 'Erreur serveur.' });
+    }
+});
+
+app.post('/api/market-servers-settings', (req, res) => {
+    try {
+        const safe = sanitizeMarketServersConfig({
+            mainWorldId: req.body?.mainWorldId,
+            secondaryWorldIds: Array.isArray(req.body?.secondaryWorldIds) ? req.body.secondaryWorldIds : []
+        });
+        const saved = saveMarketServersConfig(safe);
+        res.json({ config: saved });
+    } catch (error) {
+        console.error('[api/market-servers-settings]', error);
         res.status(500).json({ error: 'Erreur serveur.' });
     }
 });

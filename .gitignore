@@ -44,3 +44,4 @@ Thumbs.db
 
 # Favoris items locaux (non versionnés)
 data-files/item_favorites.json
+data-files/market_servers_config.json

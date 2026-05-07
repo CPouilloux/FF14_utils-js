@@ -281,7 +281,6 @@ button.page-link {
     overflow: auto;
     border: 1px solid #1f2937;
     background: #111827;
-    max-height: 52vh;
 }
 
 #dataTable {

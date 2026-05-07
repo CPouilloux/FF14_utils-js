@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="fr" class="market-servers-root">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Serveurs marché — FF14 Market Helper</title>
+  <link href="/css/nav.css" rel="stylesheet">
+  <link href="/css/index.css" rel="stylesheet">
+  <link href="/css/market-servers.css" rel="stylesheet">
+</head>
+<body class="market-servers-page">
+  <%- include('partials/nav', { currentPath }) %>
+  <main class="page-container market-servers-layout">
+    <section class="toolbar market-servers-header">
+      <div>
+        <h1 class="market-servers-title">Configuration des serveurs marché</h1>
+        <p class="market-servers-subtitle">
+          Choisis le serveur principal et les serveurs secondaires affichés sur le détail marché.
+          Les serveurs sont groupés par centre de données (Europe + Océanie).
+        </p>
+        <p class="market-servers-subtitle">
+          Principal actuel : <strong id="currentMainLabel"><%= currentMainName %></strong> —
+          Fichier local : <code><%= configFile %></code>
+        </p>
+      </div>
+      <button id="themeToggleBtn" type="button" class="theme-toggle-btn btn btn-secondary">Mode clair</button>
+    </section>
+
+    <div class="market-servers-fill">
+      <section class="table-card market-servers-panel">
+        <form id="marketServersForm" class="market-servers-form">
+          <div class="market-servers-scroll">
+            <% for (let i = 0; i < groups.length; i++) { %>
+              <% const group = groups[i]; %>
+              <fieldset class="market-dc-group" data-dc-id="<%= group.datacenterId %>">
+                <legend><%= group.datacenterName %></legend>
+                <div class="market-dc-actions">
+                  <button type="button" class="btn btn-secondary btn-dc-secondary-all">Tout cocher (secondaire)</button>
+                  <button type="button" class="btn btn-secondary btn-dc-secondary-none">Tout décocher (secondaire)</button>
+                </div>
+                <div class="market-world-grid">
+                  <% for (let j = 0; j < group.worlds.length; j++) { %>
+                    <% const world = group.worlds[j]; %>
+                    <div class="market-world-row">
+                      <input
+                        type="radio"
+                        name="mainWorldId"
+                        value="<%= world.id %>"
+                        <%= world.isMain ? "checked" : "" %>>
+                      <span class="main-label">Principal</span>
+                      <input
+                        type="checkbox"
+                        class="secondary-world-checkbox"
+                        value="<%= world.id %>"
+                        <%= world.isSecondary ? "checked" : "" %>>
+                      <span class="secondary-label">Secondaire</span>
+                      <span class="world-name"><%= world.name %></span>
+                      <span class="world-id">#<%= world.id %></span>
+                    </div>
+                  <% } %>
+                </div>
+              </fieldset>
+            <% } %>
+          </div>
+          <footer class="market-servers-footer">
+            <button type="submit" class="btn btn-primary">Enregistrer</button>
+            <span id="marketServersStatus" class="market-servers-status" role="status"></span>
+          </footer>
+        </form>
+      </section>
+    </div>
+  </main>
+  <script src="/js/market_servers_settings.js"></script>
+  <script src="/js/theme_toggle.js"></script>
+</body>
+</html>

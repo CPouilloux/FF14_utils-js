@@ -1,9 +1,21 @@
 <nav class="app-nav">
-    <div class="app-nav-inner">
+    <div class="app-nav-inner<%= typeof showMarketMarginFilter !== 'undefined' && showMarketMarginFilter ? ' app-nav-inner--with-margin' : '' %>">
+        <% if (typeof showMarketMarginFilter !== 'undefined' && showMarketMarginFilter) { %>
+        <div class="app-nav-margin-group">
+            <label for="marketMarginMinInput" class="market-detail-margin-label app-nav-margin-label">Marge min. (%)</label>
+            <input type="number" class="market-detail-margin-input app-nav-margin-input" id="marketMarginMinInput" name="marketMarginMin" min="0" step="0.1" inputmode="decimal" placeholder="ex: 5" aria-describedby="marketMarginMinHelp">
+        </div>
+        <% } %>
+        <div class="app-nav-links">
         <a class="app-nav-link <%= currentPath === '/' ? 'active' : '' %>" href="/">Comparaison de prix</a>
+        <a class="app-nav-link <%= currentPath === '/market-servers' ? 'active' : '' %>" href="/market-servers">Serveurs marché</a>
         <a class="app-nav-link <%= currentPath === '/favorites' ? 'active' : '' %>" href="/favorites">Mes favoris</a>
         <a class="app-nav-link <%= currentPath === '/craft' ? 'active' : '' %>" href="/craft">Recettes craft</a>
         <a class="app-nav-link <%= currentPath === '/top-items' ? 'active' : '' %>" href="/top-items">Items les plus vendus</a>
         <a class="app-nav-link <%= currentPath === '/macro-translate' ? 'active' : '' %>" href="/macro-translate">Traduction macros</a>
+        </div>
+        <% if (typeof showMarketMarginFilter !== 'undefined' && showMarketMarginFilter) { %>
+        <div class="app-nav-trailing" aria-hidden="true"></div>
+        <% } %>
     </div>
 </nav>

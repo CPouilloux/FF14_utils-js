@@ -10,11 +10,15 @@
     <link href="/css/item_favorites.css" rel="stylesheet">
 </head>
 <body>
-<%- include('partials/nav', { currentPath }) %>
+<%- include('partials/nav', { currentPath, showMarketMarginFilter: true }) %>
 <main class="page-container">
 <div class="top-actions">
     <button id="themeToggleBtn" type="button" class="theme-toggle-btn btn btn-secondary">Mode clair</button>
 </div>
+
+<section class="detail-toolbar market-detail-margin-help-panel">
+    <span id="marketMarginMinHelp" class="market-detail-margin-help">Chaque ligne secondaire est comparée au <strong>prix le moins cher</strong> du serveur principal (1ʳᵉ annonce). Sous le seuil (%), seules les <strong>lignes</strong> concernées sont floutées. La saisie se fait dans le <strong>menu</strong> en haut.</span>
+</section>
 
 <section class="detail-toolbar">
     <div class="saved-shortcuts">

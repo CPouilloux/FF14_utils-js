@@ -1,19 +1,5 @@
-const main_server = "71";
-const datacenter_name = "chaos";
-const chaos_servers = {
-    "39": "Omega",
-    "71": "Moogle",
-    "80": "Cerberus",
-    "83": "Louisoix",
-    "85": "Spriggan",
-    "97": "Ragnarok",
-    "400": "Sagittarius",
-    "401": "Phantom"
-}
-
-function buildUrl(list_ids) {
-    //let url = "https://universalis.app/api/v2/chaos/8,9?entries=20";
-    let url = `https://universalis.app/api/v2/${datacenter_name}/${list_ids}`;
+function buildUrl(datacenterName, list_ids) {
+    let url = `https://universalis.app/api/v2/${datacenterName}/${list_ids}`;
     console.log(url);
     return url;
 }
@@ -120,31 +106,62 @@ function sortMarketDataByServer(data) {
 // Exemple d'utilisation
 
 
-async function retrive_market_data(id_list) {
-    const url = buildUrl(id_list);
-    let data = await getDictDataFromUrl(url);
-
-    // Universalis retourne un format différent selon le nombre d'items :
-    // - 1 item  : { itemID: 123, listings: [...], ... }
-    // - N items : { itemIDs: [123, 456], items: { 123: {...}, 456: {...} } }
-    // On normalise vers le format multi-items pour que sortMarketDataByServer fonctionne toujours.
+function normalizeUniversalisPayload(data) {
     if (data["itemID"] !== undefined && data["itemIDs"] === undefined) {
-        data = {
+        return {
             itemIDs: [data["itemID"]],
             items: { [data["itemID"]]: data }
         };
     }
-
-    let full_data = sortMarketDataByServer(data);
-    return full_data;
+    return data;
 }
-function get_server_data(){
-    const serv_whiout_main = Object.assign({}, chaos_servers);;
-    delete serv_whiout_main[main_server];
+
+function mergeMarketData(dest, src) {
+    Object.entries(src || {}).forEach(([itemId, byWorld]) => {
+        if (!dest[itemId]) {
+            dest[itemId] = {};
+        }
+        Object.entries(byWorld || {}).forEach(([worldId, listings]) => {
+            if (!Array.isArray(listings) || listings.length === 0) {
+                return;
+            }
+            if (!dest[itemId][worldId]) {
+                dest[itemId][worldId] = [];
+            }
+            dest[itemId][worldId].push(...listings);
+        });
+    });
+}
+
+async function retrive_market_data(id_list, datacenterNames) {
+    const dcs = Array.isArray(datacenterNames) && datacenterNames.length > 0 ? datacenterNames : ["chaos"];
+    const chunks = await Promise.all(
+        dcs.map(async (dc) => {
+            const url = buildUrl(dc, id_list);
+            const rawData = await getDictDataFromUrl(url);
+            const normalized = normalizeUniversalisPayload(rawData);
+            return sortMarketDataByServer(normalized);
+        })
+    );
+
+    const merged = {};
+    chunks.forEach((chunk) => mergeMarketData(merged, chunk));
+    return merged;
+}
+
+function get_server_data(config, getWorldById){
+    const main = getWorldById(config.mainWorldId);
+    const allOthers = {};
+    (config.secondaryWorldIds || []).forEach((id) => {
+        const world = getWorldById(id);
+        if (world) {
+            allOthers[id] = world.name;
+        }
+    });
     return {
-        "main_serveur" : chaos_servers[main_server],
-        "main_serveur_id" : main_server,
-        all_others_serveur : serv_whiout_main
+        "main_serveur" : main ? main.name : `#${config.mainWorldId}`,
+        "main_serveur_id" : String(config.mainWorldId),
+        all_others_serveur : allOthers
     }
 }
 
